@@ -390,7 +390,7 @@ fn move_question(draft: RwSignal<Quiz>, qid: String, delta: isize) {
 const FORMAT_HELP: &str = "\
 1. What is the powerhouse of the cell?
 A) Nucleus
-B) Mitochondria *              (* marks the correct answer)
+B) Mitochondria *              (* marks the correct answer; write \\* for a literal star)
 C) Ribosome
 Explanation: Mitochondria make ATP.
 

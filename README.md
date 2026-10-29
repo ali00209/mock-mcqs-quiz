@@ -80,6 +80,7 @@ c) Blue *
 
 - A question starts with a number and `.` or `)`.
 - Options start with a letter and `)` or `.`. Put `*` after each correct one.
+- For an option whose text is a star, write `\*` at the end (a lone `*` is the option's text).
 - Add `(multi)` after a question with more than one correct answer.
 - `Explanation:` is optional.
 
@@ -87,3 +88,15 @@ The quiz's title, description, category, tags, time limit, pass mark, and
 shuffle settings are set in the form, not in the text. Errors are listed with
 line numbers. Parsing lives in `crates/domain/src/text_format.rs` and is
 covered by `cargo test`.
+
+## Continuous integration and GitHub Pages
+
+- `.github/workflows/ci.yml` runs on every push and pull request. It runs the
+  domain and database tests, then builds the worker and the app.
+- `.github/workflows/pages.yml` runs on pushes to `main`. It runs the tests,
+  builds the app with the repository name as its base path, and deploys it to
+  GitHub Pages.
+
+To turn on deployment, open the repository's **Settings → Pages** and set
+**Source** to **GitHub Actions**. The site is then published at
+`https://<user>.github.io/<repo>/`.

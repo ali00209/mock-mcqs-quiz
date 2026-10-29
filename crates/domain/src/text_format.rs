@@ -18,6 +18,9 @@
 //! and `)` or `.`. A question with several correct answers needs `(multi)` after
 //! its text. Other lines continue the question text or explanation. The quiz's
 //! title and settings are set in the app, not in the text.
+//!
+//! A `*` at the end of an option marks it correct. For an option whose text is
+//! a star, write `\*` at the end, or leave a lone `*` as the whole option.
 
 use crate::model::{
     AnswerOption, MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, Question, QuestionKind, new_id,
@@ -71,10 +74,7 @@ pub fn parse_quiz_text(text: &str) -> Result<Vec<Question>, Vec<String>> {
         if let Some(rest) = option_start(line) {
             match current.as_mut() {
                 Some(draft) => {
-                    let (label, correct) = match rest.trim_end().strip_suffix('*') {
-                        Some(label) => (label.trim().to_string(), true),
-                        None => (rest.trim().to_string(), false),
-                    };
+                    let (label, correct) = option_text(rest);
                     draft.options.push((label, correct));
                     draft.section = Section::Options;
                 }
@@ -157,6 +157,23 @@ fn option_start(line: &str) -> Option<&str> {
     } else {
         None
     }
+}
+
+/// Splits an option into its text and whether it is correct.
+///
+/// A `*` at the end marks the option correct. Two cases keep a star as text:
+/// a lone `*` (the whole option is the star), and `\*` at the end (an escaped star).
+fn option_text(rest: &str) -> (String, bool) {
+    let trimmed = rest.trim_end();
+    if let Some(literal) = trimmed.strip_suffix("\\*") {
+        return (format!("{}*", literal.trim_end()), false);
+    }
+    if let Some(label) = trimmed.strip_suffix('*') {
+        if !label.trim().is_empty() {
+            return (label.trim().to_string(), true);
+        }
+    }
+    (trimmed.trim().to_string(), false)
 }
 
 /// Removes a trailing `(multi)` tag from a question line.
@@ -280,6 +297,30 @@ d) Yellow
     fn single_answer_with_two_correct_is_rejected() {
         let errors = parse_quiz_text("1. Q?\nA) x *\nB) y *\n").unwrap_err();
         assert!(errors.iter().any(|e| e.contains("more than one correct")));
+    }
+
+    #[test]
+    fn a_lone_star_is_option_text_not_a_marker() {
+        let questions = parse_quiz_text("1. Which is multiplication?\nA) +\nB) *\nC) /\nD) - *\n").unwrap();
+        let options = &questions[0].options;
+        assert_eq!(options[1].text, "*");
+        assert!(!options[1].is_correct);
+        assert!(options[3].is_correct);
+    }
+
+    #[test]
+    fn escaped_star_is_literal_text() {
+        let questions = parse_quiz_text("1. Q?\nA) \\*\nB) x *\n").unwrap();
+        assert_eq!(questions[0].options[0].text, "*");
+        assert!(!questions[0].options[0].is_correct);
+    }
+
+    #[test]
+    fn right_associativity_question_parses() {
+        let text = "69. Which is right-associative?\nA) +\nB) *\nC) = (assignment) *\nD) /\nExplanation: Assignment is right-associative.\n";
+        let questions = parse_quiz_text(text).unwrap();
+        assert_eq!(questions[0].options[2].text, "= (assignment)");
+        assert_eq!(questions[0].options.iter().filter(|o| o.is_correct).count(), 1);
     }
 
     #[test]

@@ -55,9 +55,9 @@ fn ensure_worker() -> Result<Worker, JsValue> {
 /// worker from a script, so this is the one piece of JavaScript in the project;
 /// it is produced here in Rust and never written to a file.
 fn spawn_worker() -> Result<Worker, JsValue> {
-    let origin = crate::ui::win().location().origin()?;
+    let base = app_base_url()?;
     let script = format!(
-        "import init, {{ start }} from \"{origin}/worker/mocktest_worker.js\";\n\
+        "import init, {{ start }} from \"{base}worker/mocktest_worker.js\";\n\
          init().then(() => start()).then(\n\
            () => postMessage(JSON.stringify({{ id: {READY_ID}, ok: true, data: null }})),\n\
            (e) => postMessage(JSON.stringify({{ id: {READY_ID}, ok: false, error: String(e) }})),\n\
@@ -71,6 +71,15 @@ fn spawn_worker() -> Result<Worker, JsValue> {
     let options = WorkerOptions::new();
     options.set_type(WorkerType::Module);
     Worker::new_with_options(&url, &options)
+}
+
+/// The folder the app is served from, with a trailing slash. This is "/" locally
+/// and "/<repo>/" on GitHub Pages, so the worker is found in both places.
+fn app_base_url() -> Result<String, JsValue> {
+    let href = crate::ui::win().location().href()?;
+    let without_suffix = href.split(['?', '#']).next().unwrap_or_default();
+    let end = without_suffix.rfind('/').map_or(0, |i| i + 1);
+    Ok(without_suffix[..end].to_string())
 }
 
 fn deliver(text: &str) {
