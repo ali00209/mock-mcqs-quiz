@@ -352,9 +352,23 @@ fn review_view(ui: Ui, review: AttemptReview) -> impl IntoView {
                 };
                 view! { <div class={class}>{text}</div> }
             })}
+            <p class="result-note">{result_note(a.passed, a.correct_count.unwrap_or(0), a.total_count)}</p>
             <div class="muted">{format!("Time taken: {}", ui::fmt_duration(a.duration_ms))}</div>
         </section>
         {questions}
+    }
+}
+
+/// One calm line under the result, in the product's own words.
+fn result_note(passed: Option<bool>, correct: u32, total: u32) -> &'static str {
+    if total > 0 && correct == total {
+        "Every answer is correct."
+    } else {
+        match passed {
+            Some(true) => "You met the pass mark. Look over the questions you missed to strengthen the next attempt.",
+            Some(false) => "Not this time. The questions you missed below show where to focus. Retake when you're ready.",
+            None => "Look over the questions you missed below to see where to focus next.",
+        }
     }
 }
 
