@@ -8,6 +8,8 @@ use mocktest_domain::{
 };
 use wasm_bindgen::{JsCast, prelude::*};
 
+use crate::icons;
+
 use crate::api;
 use crate::ui::{self, Ui};
 
@@ -115,7 +117,8 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
     let handle = ui::win()
         .set_interval_with_callback_and_timeout_and_arguments_0(tick.as_ref().unchecked_ref(), 1000)
         .unwrap_or(0);
-    tick.forget();
+    // Owned by this page, so the closure is freed when the page unmounts.
+    let _tick = StoredValue::new_local(tick);
     on_cleanup(move || ui::win().clear_interval_with_handle(handle));
 
     // When time runs out, ask the worker to finalize the attempt.
@@ -185,7 +188,7 @@ fn attempt_view(session: Session, view: AttemptView, submit: impl Fn() + Copy + 
     view! {
         <div class="attempt-head">
             <h1>{title}</h1>
-            <div class="timer">{move || match deadline {
+            <div class="timer" role="timer">{move || match deadline {
                 Some(d) => format!("Time left {}", ui::fmt_clock(d - session.now.get())),
                 None => String::new(),
             }}</div>
@@ -220,7 +223,18 @@ fn attempt_view(session: Session, view: AttemptView, submit: impl Fn() + Copy + 
     }
 }
 
+fn nav_label(session: Session, qid: &str, position: usize) -> String {
+    let answer = session.answer(qid);
+    let mut label = format!("Question {}", position + 1);
+    label.push_str(if answer.selected.is_empty() { ", not answered" } else { ", answered" });
+    if answer.flagged {
+        label.push_str(", flagged");
+    }
+    label
+}
+
 fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
+    let label_qid = qid.clone();
     view! {
         <button
             class=move || {
@@ -237,13 +251,15 @@ fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
                 }
                 class
             }
+            aria-label=move || nav_label(session, &label_qid, position)
+            aria-current=move || if session.index.get() == position { "step" } else { "false" }
             on:click=move |_| session.index.set(position)>
             {position + 1}
         </button>
     }
 }
 
-fn question_card(session: Session, q: AttemptQuestionView, position: usize, one: bool) -> impl IntoView {
+session: Session, q: AttemptQuestionView, position: usize, one: bool) -> impl IntoView {
     let qid = StoredValue::new(q.id.clone());
     let kind = q.kind;
     let input_type = if kind == QuestionKind::Single { "radio" } else { "checkbox" };
@@ -357,14 +373,15 @@ fn review_question(index: usize, q: ReviewQuestion) -> impl IntoView {
                 class.push_str(" picked");
             }
             let mark = if o.is_correct {
-                "✓ "
+                icons::check().into_any()
             } else if o.selected {
-                "✗ "
+                icons::cross().into_any()
             } else {
-                "• "
+                icons::dot().into_any()
             };
             let yours = if o.selected && !o.is_correct { " (your answer)" } else { "" };
-            view! { <li class={class}>{mark}{o.text}{yours}</li> }
+            let correct = if o.is_correct { " (correct answer)" } else { "" };
+            view! { <li class={class}>{mark}{o.text}{yours}{correct}</li> }
         })
         .collect();
     let explanation = q.explanation.clone();

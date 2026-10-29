@@ -8,6 +8,7 @@ use mocktest_domain::{
 };
 
 use crate::api;
+use crate::icons;
 use crate::ui::{self, Ui};
 
 #[component]
@@ -111,7 +112,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         {move || {
             (!issues.get().is_empty()).then(|| {
                 view! {
-                    <div class="panel error">
+                    <div class="panel error" role="alert">
                         <strong>"Fix these before saving:"</strong>
                         <ul>{issues.get().into_iter().map(|issue| view! { <li>{issue}</li> }).collect_view()}</ul>
                     </div>
@@ -190,6 +191,10 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 "Add question"
             </button>
         </section>
+
+        <div class="save-bar">
+            <button class="primary" on:click=move |_| save()>"Save quiz"</button>
+        </div>
     }
 }
 
@@ -254,6 +259,16 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
     }
 }
 
+fn option_number(draft: RwSignal<Quiz>, qid: &str, oid: &str) -> usize {
+    draft.with(|d| {
+        d.questions
+            .iter()
+            .find(|q| q.id == qid)
+            .and_then(|q| q.options.iter().position(|o| o.id == oid))
+            .map_or(0, |i| i + 1)
+    })
+}
+
 fn option_row(draft: RwSignal<Quiz>, qid: StoredValue<String>, o: AnswerOption) -> impl IntoView {
     let oid = StoredValue::new(o.id.clone());
     view! {
@@ -265,20 +280,23 @@ fn option_row(draft: RwSignal<Quiz>, qid: StoredValue<String>, o: AnswerOption) 
                 <span>"Correct"</span>
             </label>
             <input type="text" value={o.text.clone()} placeholder="Option text"
+                aria-label=move || format!("Option {} text", option_number(draft, &qid.get_value(), &oid.get_value()))
                 on:input=move |ev| {
                     let text = event_target_value(&ev);
                     update_option(draft, &qid.get_value(), &oid.get_value(), |x| x.text = text);
                 }/>
-            <button
+            <button class="icon-button"
                 disabled=move || question_option_count(draft, &qid.get_value()) <= MIN_OPTIONS
+                title="Remove option"
+                aria-label=move || format!("Remove option {}", option_number(draft, &qid.get_value(), &oid.get_value()))
                 on:click=move |_| remove_option(draft, &qid.get_value(), &oid.get_value())>
-                "✕"
+                {icons::cross()}
             </button>
         </div>
     }
 }
 
-// ---------- Mutations on the draft ----------
+
 
 fn update_question(draft: RwSignal<Quiz>, qid: &str, f: impl FnOnce(&mut Question)) {
     draft.update(|d| {
@@ -446,7 +464,7 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
             {move || {
                 preview.get().map(|result| match result {
                     Err(errors) => view! {
-                        <div class="panel error">
+                        <div class="panel error" role="alert">
                             <strong>"Fix these, then check again:"</strong>
                             <ul>{errors.into_iter().map(|e| view! { <li>{e}</li> }).collect_view()}</ul>
                         </div>

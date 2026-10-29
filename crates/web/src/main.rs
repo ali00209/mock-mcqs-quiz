@@ -1,6 +1,7 @@
 mod api;
 mod attempt;
 mod editor;
+mod icons;
 mod ui;
 
 use leptos::prelude::*;
@@ -62,9 +63,13 @@ fn App() -> impl IntoView {
         <main class="container">
             {move || {
                 ui.notice.get().map(|(message, error)| {
-                    let class = if error { "banner error" } else { "banner" };
+                    let (class, role) = if error { ("banner error", "alert") } else { ("banner", "status") };
                     view! {
-                        <div class={class} on:click=move |_| ui.notice.set(None)>{message}</div>
+                        <div class={class} role={role}>
+                            <span>{message}</span>
+                            <button class="banner-close" aria-label="Dismiss message"
+                                on:click=move |_| ui.notice.set(None)>"Dismiss"</button>
+                        </div>
                     }
                 })
             }}
@@ -105,7 +110,14 @@ fn Library(ui: Ui) -> impl IntoView {
             None => view! { <p class="muted">"Loading…"</p> }.into_any(),
             Some(Err(error)) => view! { <p class="error">{error}</p> }.into_any(),
             Some(Ok(bootstrap)) if bootstrap.quizzes.is_empty() => view! {
-                <p class="muted">"No quizzes yet. Create one, or import a quiz file."</p>
+                <section class="panel empty">
+                    <h2>"No quizzes yet"</h2>
+                    <p class="muted">"Create a quiz, or import a quiz file you already have."</p>
+                    <div class="actions">
+                        <button class="primary" on:click=move |_| new_quiz(ui)>"New quiz"</button>
+                        <button on:click=move |_| import_quiz(ui)>"Import"</button>
+                    </div>
+                </section>
             }
             .into_any(),
             Some(Ok(bootstrap)) => view! {
@@ -152,11 +164,12 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
         q.title.clone(),
     );
     let ready = q.ready;
+    let hint = if ready { None } else { Some("Open Edit to finish this quiz before starting it.") };
 
     view! {
         <article class="card">
             <div class="card-head">
-                <h3>{q.title.clone()}</h3>
+                <h2 class="card-title">{q.title.clone()}</h2>
                 <div class="badges">
                     {is_sample.then(|| view! { <span class="badge">"Sample"</span> })}
                     {(!ready).then(|| view! { <span class="badge warn">"Incomplete"</span> })}
@@ -165,6 +178,7 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
             {(!q.description.is_empty()).then(|| view! { <p class="muted">{q.description.clone()}</p> })}
             <p class="meta">{details}</p>
             <p class="meta">{attempts}</p>
+            {hint.map(|text| view! { <p class="hint">{text}</p> })}
             <div class="actions">
                 {match resume_href {
                     Some(href) => view! { <a class="button primary" href={href}>"Resume"</a> }.into_any(),
@@ -174,21 +188,28 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
                     }
                     .into_any(),
                 }}
-                {(!is_sample).then(|| view! { <a class="button" href={edit_href}>"Edit"</a> })}
-                <button on:click=move |_| duplicate(ui, dup_id.clone())>
-                    {if is_sample { "Duplicate to edit" } else { "Duplicate" }}
-                </button>
-                <button on:click=move |_| export_quiz(ui, export_id.clone(), export_title.clone())>"Export"</button>
-                {(!is_sample).then(|| view! {
-                    <button class="danger"
-                        on:click=move |_| delete_quiz(ui, delete_id.clone(), delete_title.clone())>"Delete"</button>
-                })}
+                <details class="menu">
+                    <summary class="button">"More"</summary>
+                    <div class="menu-items">
+                        {(!is_sample).then(|| view! { <a class="menu-item" href={edit_href}>"Edit"</a> })}
+                        <button class="menu-item" on:click=move |_| duplicate(ui, dup_id.clone())>
+                            {if is_sample { "Duplicate to edit" } else { "Duplicate" }}
+                        </button>
+                        <button class="menu-item" on:click=move |_| export_quiz(ui, export_id.clone(), export_title.clone())>
+                            "Export"
+                        </button>
+                        {(!is_sample).then(|| view! {
+                            <button class="menu-item danger"
+                                on:click=move |_| delete_quiz(ui, delete_id.clone(), delete_title.clone())>"Delete"</button>
+                        })}
+                    </div>
+                </details>
             </div>
         </article>
     }
 }
 
-fn new_quiz(ui: Ui) {
+
     spawn_local(async move {
         match api::create_quiz().await {
             Ok(quiz) => ui::go(&format!("#/edit/{}", quiz.id)),
@@ -284,14 +305,14 @@ fn History() -> impl IntoView {
                 let mut rows: Vec<AttemptSummary> = bootstrap.attempts;
                 rows.sort_by(|a, b| b.started_at.cmp(&a.started_at));
                 view! {
-                    <table class="table">
+                    <div class="table-wrap"><table class="table">
                         <thead>
                             <tr>
                                 <th>"Quiz"</th><th>"Started"</th><th>"Status"</th><th>"Score"</th><th></th>
                             </tr>
                         </thead>
                         <tbody>{rows.into_iter().map(history_row).collect_view()}</tbody>
-                    </table>
+                    </table></div>
                 }
                 .into_any()
             }

@@ -8,7 +8,7 @@
   --accent-text: #ffffff;
   --ok: #1f8a4c;
   --bad: #c73c3c;
-  --warn: #b7791f;
+  --warn: #8a5a0b;
   --radius: 10px;
   color-scheme: light;
 }
@@ -168,3 +168,50 @@ textarea { resize: vertical; }
   .option-row { grid-template-columns: auto 1fr; }
   .option-row button { grid-column: 2; justify-self: end; }
 }
+
+/* ---- Audit pass ---- */
+h1, h2 { letter-spacing: -0.02em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+
+button, .button { min-height: 40px; }
+.qbtn, .option-row button, .icon-button { min-width: 44px; min-height: 44px; }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; }
+.icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.15em; }
+.review-options li .icon { margin-right: 6px; }
+
+.banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.banner-close { min-height: 36px; }
+
+.table-wrap { overflow-x: auto; margin-bottom: 16px; }
+
+.card-title { font-size: 16px; margin: 0; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+
+.menu { position: relative; }
+.menu > summary { list-style: none; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu-items {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 4; min-width: 180px;
+  display: flex; flex-direction: column; padding: 4px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.menu-item {
+  text-align: left; border: none; background: none; padding: 8px 12px; border-radius: 6px;
+  text-decoration: none; color: var(--text);
+}
+.menu-item:hover { background: var(--bg); }
+.menu-item.danger { color: var(--bad); }
+
+.empty { text-align: center; padding: 32px 18px; }
+.empty .actions { justify-content: center; }
+
+.save-bar {
+  position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px;
+  padding: 12px 0; margin-top: 8px; background: var(--bg); border-top: 1px solid var(--border);
+}
+
+.format { background: var(--bg); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 13px; }

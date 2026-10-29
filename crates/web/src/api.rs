@@ -46,6 +46,20 @@ fn ensure_worker() -> Result<Worker, JsValue> {
     worker.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
     onmessage.forget();
 
+    // A worker that fails to load never replies. Turn that into a readable error.
+    let onerror = Closure::wrap(Box::new(move |_event: web_sys::Event| {
+        deliver(
+            &serde_json::json!({
+                "id": READY_ID,
+                "ok": false,
+                "error": "The database worker failed to load. Run scripts/build-worker.sh, then reload the page.",
+            })
+            .to_string(),
+        );
+    }) as Box<dyn FnMut(web_sys::Event)>);
+    let _ = worker.add_event_listener_with_callback("error", onerror.as_ref().unchecked_ref());
+    onerror.forget();
+
     READY.with(|r| *r.borrow_mut() = Some(ready));
     WORKER.with(|w| *w.borrow_mut() = Some(worker.clone()));
     Ok(worker)
