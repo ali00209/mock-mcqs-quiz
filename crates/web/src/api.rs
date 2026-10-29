@@ -226,3 +226,7 @@ pub async fn restore(data_base64: String) -> Result<serde_json::Value, String> {
 pub async fn reset() -> Result<(), String> {
     typed(Command::ResetData).await
 }
+
+pub async fn clear_history() -> Result<(), String> {
+    typed(Command::ClearHistory).await
+}

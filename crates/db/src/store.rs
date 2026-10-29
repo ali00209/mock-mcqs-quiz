@@ -94,6 +94,10 @@ pub fn dispatch(conn: &Connection, command: Command, now: i64) -> Result<Value, 
             delete_attempt(conn, &id)?;
             Ok(Value::Null)
         }
+        Command::ClearHistory => {
+            clear_history(conn)?;
+            Ok(Value::Null)
+        }
         Command::BackupDatabase | Command::RestoreDatabase { .. } | Command::ResetData => {
             Err(DbError::Invalid(
                 "This operation is handled by the database worker.".to_string(),
@@ -681,6 +685,16 @@ fn get_review(conn: &Connection, id: &str, now: i64) -> Result<AttemptReview, Db
         ));
     }
     Ok(snapshot.review(&meta, &answers))
+}
+
+/// Removes every attempt and its answers. Quizzes and their questions stay.
+fn clear_history(conn: &Connection) -> Result<(), DbError> {
+    let tx = conn.unchecked_transaction()?;
+    // Answers first, so no row is left pointing at a deleted attempt.
+    tx.execute("DELETE FROM attempt_answers", [])?;
+    tx.execute("DELETE FROM attempts", [])?;
+    tx.commit()?;
+    Ok(())
 }
 
 fn delete_attempt(conn: &Connection, id: &str) -> Result<(), DbError> {

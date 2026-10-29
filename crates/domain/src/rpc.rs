@@ -47,6 +47,7 @@ pub enum Command {
     DeleteAttempt {
         id: String,
     },
+    ClearHistory,
     BackupDatabase,
     RestoreDatabase {
         data_base64: String,

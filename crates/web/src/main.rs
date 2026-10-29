@@ -97,7 +97,7 @@ fn App() -> impl IntoView {
             }}
             {move || match page.get() {
                 Page::Library => view! { <Library ui=ui/> }.into_any(),
-                Page::History => view! { <History/> }.into_any(),
+                Page::History => view! { <History ui=ui/> }.into_any(),
                 Page::Data => view! { <Data ui=ui/> }.into_any(),
                 Page::Edit(id) => view! { <editor::Editor ui=ui id=id/> }.into_any(),
                 Page::Attempt(id) => view! { <attempt::Attempt ui=ui id=id/> }.into_any(),
@@ -309,7 +309,7 @@ fn delete_quiz(ui: Ui, id: String, title: String) {
 // ---------- History ----------
 
 #[component]
-fn History() -> impl IntoView {
+fn History(ui: Ui) -> impl IntoView {
     let data = RwSignal::new(None::<Result<BootstrapData, String>>);
     spawn_local(async move {
         data.set(Some(api::bootstrap().await));
@@ -327,6 +327,9 @@ fn History() -> impl IntoView {
                 let mut rows: Vec<AttemptSummary> = bootstrap.attempts;
                 rows.sort_by(|a, b| b.started_at.cmp(&a.started_at));
                 view! {
+                    <div class="actions">
+                        <button class="danger" on:click=move |_| clear_history(ui)>"Clear history"</button>
+                    </div>
                     <div class="table-wrap"><table class="table">
                         <thead>
                             <tr>
@@ -340,6 +343,21 @@ fn History() -> impl IntoView {
             }
         }}
     }
+}
+
+fn clear_history(ui: Ui) {
+    if !ui::confirm("Delete all attempts and their answers? Quizzes are kept. This cannot be undone.") {
+        return;
+    }
+    spawn_local(async move {
+        match api::clear_history().await {
+            Ok(()) => {
+                ui.notify("History was cleared.", false);
+                ui.reload();
+            }
+            Err(error) => ui.notify(error, true),
+        }
+    });
 }
 
 fn history_row(a: AttemptSummary) -> impl IntoView {
