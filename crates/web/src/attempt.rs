@@ -209,21 +209,19 @@ fn attempt_view(session: Session, view: AttemptView, submit: impl Fn() + Copy + 
             {one.then(|| {
                 // aria-disabled instead of disabled: a disabled button loses keyboard focus.
                 view! {
-                    <button aria-disabled=move || (session.index.get() == 0).then_some("true")
-                        on:click=move |_| session.index.update(|i| *i = i.saturating_sub(1))>"Previous"</button>
+                    <div class="actions">
+                        <button aria-disabled=move || (session.index.get() == 0).then_some("true")
+                            on:click=move |_| session.index.update(|i| *i = i.saturating_sub(1))>"Previous"</button>
+                        <button aria-disabled=move || (session.index.get() + 1 >= total).then_some("true")
+                            on:click=move |_| {
+                                if session.index.get() + 1 < total {
+                                    session.index.update(|i| *i += 1);
+                                }
+                            }>"Next"</button>
+                    </div>
                 }
             })}
-            {one.then(|| {
-                view! {
-                    <button aria-disabled=move || (session.index.get() + 1 >= total).then_some("true")
-                        on:click=move |_| {
-                            if session.index.get() + 1 < total {
-                                session.index.update(|i| *i += 1);
-                            }
-                        }>"Next"</button>
-                }
-            })}
-            <button class="primary" on:click=move |_| submit()>"Submit attempt"</button>
+            <button class="primary submit" on:click=move |_| submit()>"Submit attempt"</button>
         </div>
     }
 }
