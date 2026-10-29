@@ -76,6 +76,12 @@ fn App() -> impl IntoView {
                 <a href="#/data" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
             </nav>
         </header>
+        // Decorative repeats of the top links for wide screens; hidden from assistive tech.
+        <nav class="side-tabs" aria-hidden="true">
+            <a href="#/" tabindex="-1" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
+            <a href="#/history" tabindex="-1" aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
+            <a href="#/data" tabindex="-1" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
+        </nav>
         <main class="container">
             {move || {
                 ui.notice.get().map(|(message, error)| {
