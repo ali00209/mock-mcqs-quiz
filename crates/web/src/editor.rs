@@ -104,10 +104,6 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     view! {
         <div class="page-head">
             <h1>"Edit quiz"</h1>
-            <div class="actions">
-                <a class="button" href="#/">"Back"</a>
-                <button class="primary" on:click=move |_| save()>"Save"</button>
-            </div>
         </div>
         {move || {
             (!issues.get().is_empty()).then(|| {
@@ -193,6 +189,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         </section>
 
         <div class="save-bar">
+            <a class="button" href="#/">"Exit without saving"</a>
             <button class="primary" on:click=move |_| save()>"Save quiz"</button>
         </div>
     }
