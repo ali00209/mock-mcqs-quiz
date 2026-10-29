@@ -10,6 +10,7 @@
   --bad: #c73c3c;
   --warn: #8a5a0b;
   --radius: 10px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   color-scheme: light;
 }
 
@@ -47,7 +48,7 @@ a { color: var(--accent); }
   position: sticky; top: 0; z-index: 5;
 }
 .topbar nav { display: flex; gap: 16px; }
-.topbar nav a { text-decoration: none; color: var(--muted); }
+.topbar nav a { text-decoration: none; color: var(--muted); display: inline-flex; align-items: center; min-height: 44px; }
 .topbar nav a:hover { color: var(--text); }
 .brand { font-weight: 700; color: var(--text) !important; text-decoration: none; font-size: 17px; }
 
@@ -77,8 +78,8 @@ button, .button {
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   text-decoration: none; display: inline-block;
 }
-button:hover:not(:disabled), .button:hover { border-color: var(--accent); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:hover:not(:disabled):not([aria-disabled="true"]), .button:hover { border-color: var(--accent); }
+button:disabled, button[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
 button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 button.danger { color: var(--bad); }
 button.danger:hover:not(:disabled) { border-color: var(--bad); }
@@ -193,16 +194,19 @@ button, .button { min-height: 40px; }
 .menu { position: relative; }
 .menu > summary { list-style: none; }
 .menu > summary::-webkit-details-marker { display: none; }
+.menu > summary.button { min-height: 44px; }
 .menu-items {
   position: absolute; right: 0; top: calc(100% + 4px); z-index: 4; min-width: 180px;
   display: flex; flex-direction: column; padding: 4px; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow);
 }
 .menu-item {
   text-align: left; border: none; background: none; padding: 8px 12px; border-radius: 6px;
   text-decoration: none; color: var(--text);
+  display: flex; align-items: center; min-height: 44px;
 }
+.question-title { font-size: 16px; margin: 0; }
 .menu-item:hover { background: var(--bg); }
 .menu-item.danger { color: var(--bad); }
 

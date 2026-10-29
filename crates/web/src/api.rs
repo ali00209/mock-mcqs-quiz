@@ -47,12 +47,13 @@ fn ensure_worker() -> Result<Worker, JsValue> {
     onmessage.forget();
 
     // A worker that fails to load never replies. Turn that into a readable error.
+    // (Developers: if the worker files are missing, run scripts/build-worker.sh.)
     let onerror = Closure::wrap(Box::new(move |_event: web_sys::Event| {
         deliver(
             &serde_json::json!({
                 "id": READY_ID,
                 "ok": false,
-                "error": "The database worker failed to load. Run scripts/build-worker.sh, then reload the page.",
+                "error": "The app couldn't start its storage. Reload the page. If this keeps happening, try another browser.",
             })
             .to_string(),
         );

@@ -206,13 +206,16 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
     view! {
         <div class="question">
             <div class="question-head">
-                <strong>{move || format!("Question {}", index() + 1)}</strong>
+                <h3 class="question-title">{move || format!("Question {}", index() + 1)}</h3>
                 <div class="actions">
                     <button disabled=move || index() == 0
+                        aria-label=move || format!("Move question {} up", index() + 1)
                         on:click=move |_| move_question(draft, qid.get_value(), -1)>"Up"</button>
                     <button disabled=move || index() + 1 >= count()
+                        aria-label=move || format!("Move question {} down", index() + 1)
                         on:click=move |_| move_question(draft, qid.get_value(), 1)>"Down"</button>
                     <button class="danger"
+                        aria-label=move || format!("Remove question {}", index() + 1)
                         on:click=move |_| draft.update(|d| d.questions.retain(|x| x.id != qid.get_value()))>
                         "Remove"
                     </button>
@@ -433,6 +436,14 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
             ui.notify(format!("A quiz can have at most {MAX_QUESTIONS} questions."), true);
             return;
         }
+        if replace
+            && current > 0
+            && !ui::confirm(&format!(
+                "Replace the {current} existing question(s) with the {count} pasted? This cannot be undone."
+            ))
+        {
+            return;
+        }
         draft.update(|q| {
             if replace {
                 q.questions = questions;
@@ -454,8 +465,11 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                 <summary>"Show the format"</summary>
                 <pre class="format">{FORMAT_HELP}</pre>
             </details>
-            <textarea rows="8" placeholder="Paste your questions here"
-                on:input=move |ev| text.set(event_target_value(&ev))></textarea>
+            <label class="field">
+                <span>"Questions to import"</span>
+                <textarea rows="8" placeholder="Paste your questions here"
+                    on:input=move |ev| text.set(event_target_value(&ev))></textarea>
+            </label>
             <div class="actions">
                 <button on:click=move |_| preview.set(Some(parse_quiz_text(&text.get_untracked())))>
                     "Check text"

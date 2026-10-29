@@ -51,13 +51,29 @@ fn App() -> impl IntoView {
     let _ = ui::win().add_event_listener_with_callback("hashchange", wasm_bindgen::JsCast::unchecked_ref(on_hash.as_ref()));
     on_hash.forget();
 
+    // Keep the browser tab title in step with the page being shown.
+    Effect::new(move |_| {
+        let title = match page.get() {
+            Page::Library => "Library",
+            Page::History => "History",
+            Page::Data => "Data",
+            Page::Edit(_) => "Edit quiz",
+            Page::Attempt(_) => "Quiz attempt",
+            Page::Review(_) => "Review",
+            Page::NotFound => "Page not found",
+        };
+        if let Some(document) = ui::win().document() {
+            document.set_title(&format!("{title} · MockTest"));
+        }
+    });
+
     view! {
         <header class="topbar">
             <a href="#/" class="brand">"MockTest"</a>
-            <nav>
-                <a href="#/">"Library"</a>
-                <a href="#/history">"History"</a>
-                <a href="#/data">"Data"</a>
+            <nav aria-label="Main">
+                <a href="#/" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
+                <a href="#/history" aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
+                <a href="#/data" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
             </nav>
         </header>
         <main class="container">
