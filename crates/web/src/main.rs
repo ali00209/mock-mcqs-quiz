@@ -1,6 +1,7 @@
 mod api;
 mod attempt;
 mod editor;
+mod kit;
 mod icons;
 mod ui;
 
