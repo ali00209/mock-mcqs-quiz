@@ -11,6 +11,7 @@ use mocktest_domain::{
     AttemptSummary, AttemptStatus, BootstrapData, QuizSource, QuizSummary,
 };
 use ui::Ui;
+use kit::ui::button::{Button, ButtonVariant};
 
 #[derive(Clone, PartialEq)]
 enum Page {
@@ -105,8 +106,8 @@ fn Library(ui: Ui) -> impl IntoView {
         <div class="page-head">
             <h1>"Your quizzes"</h1>
             <div class="actions">
-                <button class="primary" on:click=move |_| new_quiz(ui)>"New quiz"</button>
-                <button on:click=move |_| import_quiz(ui)>"Import"</button>
+                <Button variant=ButtonVariant::Default on:click=move |_| new_quiz(ui)>"New quiz"</Button>
+                <Button variant=ButtonVariant::Outline on:click=move |_| import_quiz(ui)>"Import"</Button>
             </div>
         </div>
         {move || match data.get() {
@@ -117,8 +118,8 @@ fn Library(ui: Ui) -> impl IntoView {
                     <h2>"No quizzes yet"</h2>
                     <p class="muted">"Create a quiz, or import a quiz file you already have."</p>
                     <div class="actions">
-                        <button class="primary" on:click=move |_| new_quiz(ui)>"New quiz"</button>
-                        <button on:click=move |_| import_quiz(ui)>"Import"</button>
+                        <Button variant=ButtonVariant::Default on:click=move |_| new_quiz(ui)>"New quiz"</Button>
+                        <Button variant=ButtonVariant::Outline on:click=move |_| import_quiz(ui)>"Import"</Button>
                     </div>
                 </section>
             }
@@ -186,8 +187,8 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
                 {match resume_href {
                     Some(href) => view! { <a class="button primary" href={href}>"Resume"</a> }.into_any(),
                     None => view! {
-                        <button class="primary" disabled={!ready}
-                            on:click=move |_| start_attempt(ui, start_id.clone())>"Start"</button>
+                        <Button variant=ButtonVariant::Default attr:disabled={!ready}
+                            on:click=move |_| start_attempt(ui, start_id.clone())>"Start"</Button>
                     }
                     .into_any(),
                 }}
@@ -309,7 +310,7 @@ fn History(ui: Ui) -> impl IntoView {
                 rows.sort_by(|a, b| b.started_at.cmp(&a.started_at));
                 view! {
                     <div class="actions">
-                        <button class="danger" on:click=move |_| clear_history(ui)>"Clear history"</button>
+                        <Button variant=ButtonVariant::Destructive on:click=move |_| clear_history(ui)>"Clear history"</Button>
                     </div>
                     <div class="table-wrap"><table class="table">
                         <thead>
@@ -384,17 +385,17 @@ fn Data(ui: Ui) -> impl IntoView {
         <section class="panel">
             <h2>"Backup"</h2>
             <p class="muted">"Save all quizzes and attempt history to a file you can restore later."</p>
-            <button class="primary" on:click=move |_| backup(ui)>"Download backup"</button>
+            <Button variant=ButtonVariant::Default on:click=move |_| backup(ui)>"Download backup"</Button>
         </section>
         <section class="panel">
             <h2>"Restore"</h2>
             <p class="muted">"Replaces all current quizzes and history with the contents of a backup file."</p>
-            <button on:click=move |_| restore(ui)>"Restore from backup…"</button>
+            <Button variant=ButtonVariant::Outline on:click=move |_| restore(ui)>"Restore from backup…"</Button>
         </section>
         <section class="panel danger-zone">
             <h2>"Reset"</h2>
             <p class="muted">"Deletes all quizzes and history."</p>
-            <button class="danger" on:click=move |_| reset(ui)>"Reset everything"</button>
+            <Button variant=ButtonVariant::Destructive on:click=move |_| reset(ui)>"Reset everything"</Button>
         </section>
     }
 }

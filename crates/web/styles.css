@@ -127,25 +127,14 @@ p { margin: 0 0 10px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 /* ---- Buttons ---- */
-button, .button {
-  font-family: var(--display); font-stretch: 112%; font-weight: 700; font-size: 13px;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  cursor: pointer; padding: 12px 18px; min-height: 44px; border-radius: var(--radius);
-  border: var(--rule) solid var(--ink); background: var(--surface); color: var(--ink);
-  text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+/* ---- Buttons ----
+   Buttons are the kit's Button component (kit/ui/button.rs). These rules are for the raw
+   buttons that remain: question-nav chips, the option remove button and menu items. */
+.qbtn, .icon-button {
+  border: var(--rule) solid var(--ink); cursor: pointer; color: var(--field-ink);
 }
-button:hover:not(:disabled):not([aria-disabled="true"]), .button:hover {
-  background: var(--ink); color: var(--surface);
-}
-button:disabled, button[aria-disabled="true"] { opacity: 0.7; cursor: not-allowed; }
-button.primary, .button.primary {
-  background: var(--accent); border-color: var(--accent); color: var(--accent-text);
-}
-button.primary:hover:not(:disabled):not([aria-disabled="true"]), .button.primary:hover {
-  background: var(--accent-deep); border-color: var(--accent-deep); color: var(--accent-text);
-}
-button.danger { color: var(--bad); border-color: var(--bad); }
-button.danger:hover:not(:disabled) { background: var(--bad); border-color: var(--bad); color: #ffffff; }
+.qbtn:hover:not(:disabled), .icon-button:hover:not(:disabled) { background: var(--ink); color: var(--surface); }
+.qbtn:disabled, .icon-button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---- Panels, cards and tables ---- */
 .panel {

@@ -25,6 +25,7 @@ fn feedback_from_value(value: &str) -> AnswerFeedback {
 use crate::api;
 use crate::icons;
 use crate::ui::{self, Ui};
+use crate::kit::ui::button::{Button, ButtonVariant};
 
 #[component]
 pub fn Editor(ui: Ui, id: String) -> impl IntoView {
@@ -42,9 +43,9 @@ pub fn Editor(ui: Ui, id: String) -> impl IntoView {
                 <section class="panel">
                     <h1>{quiz.title.clone()}</h1>
                     <p class="muted">"Sample quizzes are read-only. Make an editable copy to change it."</p>
-                    <button class="primary" on:click=move |_| copy_for_editing(ui, id.clone())>
+                    <Button variant=ButtonVariant::Default on:click=move |_| copy_for_editing(ui, id.clone())>
                         "Make an editable copy"
-                    </button>
+                    </Button>
                 </section>
             }
             .into_any()
@@ -238,11 +239,12 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
                 key=|q| q.id.clone()
                 children=move |q: Question| question_editor(draft, q)
             />
-            <button
-                disabled=move || draft.with(|q| q.questions.len() >= MAX_QUESTIONS)
+            <Button
+                variant=ButtonVariant::Outline
+                attr:disabled=move || draft.with(|q| q.questions.len() >= MAX_QUESTIONS)
                 on:click=move |_| draft.update(|q| q.questions.push(Question::blank()))>
                 "Add question"
-            </button>
+            </Button>
             {move || {
                 (draft.with(|q| q.questions.len()) >= MAX_QUESTIONS).then(|| {
                     view! { <p class="hint">{format!("A quiz can have at most {MAX_QUESTIONS} questions.")}</p> }
@@ -268,11 +270,11 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
                     view! { <p class={class} role={role}>{message}</p> }
                 })
             }}
-            <button class="button" disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</button>
-            <button class="button" on:click=move |_| exit()>"Exit without saving"</button>
-            <button class="primary" disabled=move || saving.get() on:click=move |_| save()>
+            <Button variant=ButtonVariant::Outline attr:disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</Button>
+            <Button variant=ButtonVariant::Outline on:click=move |_| exit()>"Exit without saving"</Button>
+            <Button variant=ButtonVariant::Default attr:disabled=move || saving.get() on:click=move |_| save()>
                 {move || if saving.get() { "Saving…" } else { "Save quiz" }}
-            </button>
+            </Button>
         </div>
     }
 }
@@ -287,17 +289,17 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
             <div class="question-head">
                 <h3 class="question-title">{move || format!("Question {}", index() + 1)}</h3>
                 <div class="actions">
-                    <button disabled=move || index() == 0
-                        aria-label=move || format!("Move question {} up", index() + 1)
-                        on:click=move |_| move_question(draft, qid.get_value(), -1)>"Up"</button>
-                    <button disabled=move || index() + 1 >= count()
-                        aria-label=move || format!("Move question {} down", index() + 1)
-                        on:click=move |_| move_question(draft, qid.get_value(), 1)>"Down"</button>
-                    <button class="danger"
-                        aria-label=move || format!("Remove question {}", index() + 1)
+                    <Button variant=ButtonVariant::Outline attr:disabled=move || index() == 0
+                        attr:aria-label=move || format!("Move question {} up", index() + 1)
+                        on:click=move |_| move_question(draft, qid.get_value(), -1)>"Up"</Button>
+                    <Button variant=ButtonVariant::Outline attr:disabled=move || index() + 1 >= count()
+                        attr:aria-label=move || format!("Move question {} down", index() + 1)
+                        on:click=move |_| move_question(draft, qid.get_value(), 1)>"Down"</Button>
+                    <Button variant=ButtonVariant::Destructive
+                        attr:aria-label=move || format!("Remove question {}", index() + 1)
                         on:click=move |_| draft.update(|d| d.questions.retain(|x| x.id != qid.get_value()))>
                         "Remove"
-                    </button>
+                    </Button>
                 </div>
             </div>
             <label class="field">
@@ -324,11 +326,11 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
                 />
             </div>
             <div class="actions">
-                <button
-                    disabled=move || question_option_count(draft, &qid.get_value()) >= MAX_OPTIONS
+                <Button variant=ButtonVariant::Outline
+                    attr:disabled=move || question_option_count(draft, &qid.get_value()) >= MAX_OPTIONS
                     on:click=move |_| add_option(draft, &qid.get_value())>
                     "Add option"
-                </button>
+                </Button>
             </div>
             <label class="field">
                 <span>"Explanation (shown after submitting)"</span>
@@ -552,9 +554,9 @@ fn text_import(draft: RwSignal<Quiz>) -> impl IntoView {
                     on:input=move |ev| text.set(event_target_value(&ev))></textarea>
             </label>
             <div class="actions">
-                <button on:click=move |_| preview.set(Some(parse_quiz_text(&text.get_untracked())))>
+                <Button variant=ButtonVariant::Outline on:click=move |_| preview.set(Some(parse_quiz_text(&text.get_untracked())))>
                     "Check text"
-                </button>
+                </Button>
             </div>
             {move || {
                 note.get().map(|(message, error)| {
@@ -582,8 +584,8 @@ fn text_import(draft: RwSignal<Quiz>) -> impl IntoView {
                                 <p>{format!("Found {count} question(s):")}</p>
                                 <ol>{names.into_iter().map(|name| view! { <li>{name}</li> }).collect_view()}</ol>
                                 <div class="actions">
-                                    <button class="primary" on:click=move |_| apply(true)>"Replace questions"</button>
-                                    <button on:click=move |_| apply(false)>"Add to questions"</button>
+                                    <Button variant=ButtonVariant::Default on:click=move |_| apply(true)>"Replace questions"</Button>
+                                    <Button variant=ButtonVariant::Outline on:click=move |_| apply(false)>"Add to questions"</Button>
                                 </div>
                             </div>
                         }
