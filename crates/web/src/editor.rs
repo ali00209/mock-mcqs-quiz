@@ -34,7 +34,7 @@ pub fn Editor(ui: Ui, id: String) -> impl IntoView {
             }
             .into_any()
         }
-        Some(Ok(quiz)) => view! { <EditForm ui=ui quiz=quiz/> }.into_any(),
+        Some(Ok(quiz)) => view! { <EditForm quiz=quiz/> }.into_any(),
     }
 }
 
@@ -65,7 +65,7 @@ fn parse_percent(text: &str) -> Option<u8> {
 }
 
 #[component]
-fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
+fn EditForm(quiz: Quiz) -> impl IntoView {
     let draft = RwSignal::new(quiz.clone());
     let tags_text = RwSignal::new(quiz.tags.join(", "));
     let minutes_text = RwSignal::new(
@@ -76,13 +76,27 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     );
     let pass_text = RwSignal::new(quiz.settings.pass_percent.map(|p| p.to_string()).unwrap_or_default());
     let issues = RwSignal::new(Vec::<String>::new());
+    let saving = RwSignal::new(false);
+    // Save outcome, shown beside the buttons: (message, is_error).
+    let status = RwSignal::new(None::<(String, bool)>);
 
-    let save = move || {
+    // The quiz as the form would save it right now.
+    let build = move || {
         let mut next = draft.get_untracked();
         next.tags = tags_text.get_untracked().split(',').map(|t| t.to_string()).collect();
         next.settings.time_limit_secs = parse_minutes(&minutes_text.get_untracked());
         next.settings.pass_percent = parse_percent(&pass_text.get_untracked());
-        let next = next.normalized();
+        next.normalized()
+    };
+    // The last saved state, compared on exit to catch unsaved changes.
+    let baseline = StoredValue::new(build());
+    let is_dirty = move || build() != baseline.get_value();
+
+    let save = move || {
+        if saving.get_untracked() {
+            return;
+        }
+        let next = build();
 
         let found: Vec<String> = next.validation_issues().into_iter().map(|issue| issue.message).collect();
         let blocked = !found.is_empty();
@@ -90,32 +104,32 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         if blocked {
             return;
         }
+        saving.set(true);
+        status.set(None);
         spawn_local(async move {
-            match api::save_quiz(next).await {
+            match api::save_quiz(next.clone()).await {
                 Ok(saved) => {
+                    baseline.set_value(next);
                     draft.set(saved);
-                    ui.notify("Saved.", false);
+                    status.set(Some(("Saved.".to_string(), false)));
                 }
-                Err(error) => ui.notify(error, true),
+                Err(error) => status.set(Some((error, true))),
             }
+            saving.set(false);
         });
+    };
+
+    let exit = move || {
+        if is_dirty() && !ui::confirm("Leave without saving? Your changes will be lost.") {
+            return;
+        }
+        ui::go("#/");
     };
 
     view! {
         <div class="page-head">
             <h1>"Edit quiz"</h1>
         </div>
-        {move || {
-            (!issues.get().is_empty()).then(|| {
-                view! {
-                    <div class="panel error" role="alert">
-                        <strong>"Fix these before saving:"</strong>
-                        <ul>{issues.get().into_iter().map(|issue| view! { <li>{issue}</li> }).collect_view()}</ul>
-                    </div>
-                }
-            })
-        }}
-
         <section class="panel">
             <h2>"Details"</h2>
             <label class="field">
@@ -172,7 +186,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             </label>
         </section>
 
-        {text_import(ui, draft)}
+        {text_import(draft)}
 
         <section class="panel">
             <h2>"Questions"</h2>
@@ -186,11 +200,35 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 on:click=move |_| draft.update(|q| q.questions.push(Question::blank()))>
                 "Add question"
             </button>
+            {move || {
+                (draft.with(|q| q.questions.len()) >= MAX_QUESTIONS).then(|| {
+                    view! { <p class="hint">{format!("A quiz can have at most {MAX_QUESTIONS} questions.")}</p> }
+                })
+            }}
         </section>
 
+        {move || {
+            (!issues.get().is_empty()).then(|| {
+                view! {
+                    <div class="panel error" role="alert">
+                        <strong>"Fix these before saving:"</strong>
+                        <ul>{issues.get().into_iter().map(|issue| view! { <li>{issue}</li> }).collect_view()}</ul>
+                    </div>
+                }
+            })
+        }}
+
         <div class="save-bar">
-            <a class="button" href="#/">"Exit without saving"</a>
-            <button class="primary" on:click=move |_| save()>"Save quiz"</button>
+            {move || {
+                status.get().map(|(message, error)| {
+                    let (class, role) = if error { ("form-status error", "alert") } else { ("form-status", "status") };
+                    view! { <p class={class} role={role}>{message}</p> }
+                })
+            }}
+            <button class="button" on:click=move |_| exit()>"Exit without saving"</button>
+            <button class="primary" disabled=move || saving.get() on:click=move |_| save()>
+                {move || if saving.get() { "Saving…" } else { "Save quiz" }}
+            </button>
         </div>
     }
 }
@@ -418,9 +456,11 @@ b) Green
 c) Blue *
 d) Yellow";
 
-fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
+fn text_import(draft: RwSignal<Quiz>) -> impl IntoView {
     let text = RwSignal::new(String::new());
     let preview = RwSignal::new(None::<Result<Vec<Question>, Vec<String>>>);
+    // Outcome of the last import, shown inside this panel: (message, is_error).
+    let note = RwSignal::new(None::<(String, bool)>);
 
     // `replace` swaps out the existing questions; otherwise the new ones go on the end.
     let apply = move |replace: bool| {
@@ -430,7 +470,7 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
         let count = questions.len();
         let current = draft.with_untracked(|q| q.questions.len());
         if !replace && current + count > MAX_QUESTIONS {
-            ui.notify(format!("A quiz can have at most {MAX_QUESTIONS} questions."), true);
+            note.set(Some((format!("A quiz can have at most {MAX_QUESTIONS} questions."), true)));
             return;
         }
         if replace
@@ -449,7 +489,7 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
             }
         });
         preview.set(None);
-        ui.notify(format!("Added {count} question(s). Check them below, then Save."), false);
+        note.set(Some((format!("Added {count} question(s). Check them below, then Save."), false)));
     };
 
     view! {
@@ -472,6 +512,12 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                     "Check text"
                 </button>
             </div>
+            {move || {
+                note.get().map(|(message, error)| {
+                    let (class, role) = if error { ("form-status error", "alert") } else { ("form-status", "status") };
+                    view! { <p class={class} role={role}>{message}</p> }
+                })
+            }}
             {move || {
                 preview.get().map(|result| match result {
                     Err(errors) => view! {
