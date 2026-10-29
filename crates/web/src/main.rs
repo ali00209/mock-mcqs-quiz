@@ -68,14 +68,6 @@ fn App() -> impl IntoView {
     });
 
     view! {
-        <header class="topbar">
-            <a href="#/" class="brand">"MockTest"</a>
-            <nav aria-label="Main">
-                <a href="#/" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
-                <a href="#/history" aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
-                <a href="#/data" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
-            </nav>
-        </header>
         // Decorative repeats of the top links for wide screens; hidden from assistive tech.
         <nav class="side-tabs" aria-hidden="true">
             <a href="#/" tabindex="-1" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
@@ -83,18 +75,6 @@ fn App() -> impl IntoView {
             <a href="#/data" tabindex="-1" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
         </nav>
         <main class="container">
-            {move || {
-                ui.notice.get().map(|(message, error)| {
-                    let (class, role) = if error { ("banner error", "alert") } else { ("banner", "status") };
-                    view! {
-                        <div class={class} role={role}>
-                            <span>{message}</span>
-                            <button class="banner-close" aria-label="Dismiss message"
-                                on:click=move |_| ui.notice.set(None)>"Dismiss"</button>
-                        </div>
-                    }
-                })
-            }}
             {move || match page.get() {
                 Page::Library => view! { <Library ui=ui/> }.into_any(),
                 Page::History => view! { <History ui=ui/> }.into_any(),
