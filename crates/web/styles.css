@@ -153,6 +153,7 @@ textarea { resize: vertical; }
 
 .score { text-align: center; padding: 28px; }
 .score .big { font-size: 48px; font-weight: 700; }
+.score .result-note { max-width: 56ch; margin: 12px auto 8px; }
 .pass { color: var(--ok); font-weight: 600; }
 .fail { color: var(--bad); font-weight: 600; }
 
