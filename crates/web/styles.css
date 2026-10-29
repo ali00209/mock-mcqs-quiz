@@ -13,6 +13,10 @@
   --ok: #1f7a4a;
   --bad: #b3261e;
   --warn: #8a5a0b;
+  /* Fields, choices and chips stay light in both modes, so their ink stays dark. */
+  --field-bg: #ffffff;
+  --field-ink: #15171c;
+  --tint: #d6e0f5;
   --radius: 0px;
   --rule: 2px;
   --shadow: 0 10px 24px rgba(10, 20, 40, 0.18);
@@ -80,11 +84,12 @@ a { color: var(--accent); }
 .side-tabs a {
   writing-mode: vertical-rl; text-decoration: none; text-transform: uppercase;
   font-family: var(--display); font-stretch: 112%; font-weight: 800; font-size: 13px;
-  letter-spacing: 0.14em; color: #ffffff; background: var(--ink);
+  letter-spacing: 0.14em; color: #ffffff; background: #15171c;
   padding: 18px 12px; min-height: 44px; text-align: left;
 }
-.side-tabs a[aria-current="page"] { background: var(--accent); }
-.side-tabs a:hover { background: var(--accent-deep); }
+/* Fixed colours: the tabs are dark in both modes, so white text always reads. */
+.side-tabs a[aria-current="page"] { background: #1f4aa0; }
+.side-tabs a:hover { background: #163a85; }
 @media (max-width: 719px) { .side-tabs { display: none; } }
 
 .container { max-width: 960px; margin: 0 auto; padding: 28px 16px 72px; }
@@ -132,7 +137,7 @@ button, .button {
 button:hover:not(:disabled):not([aria-disabled="true"]), .button:hover {
   background: var(--ink); color: var(--surface);
 }
-button:disabled, button[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+button:disabled, button[aria-disabled="true"] { opacity: 0.7; cursor: not-allowed; }
 button.primary, .button.primary {
   background: var(--accent); border-color: var(--accent); color: var(--accent-text);
 }
@@ -145,7 +150,7 @@ button.danger:hover:not(:disabled) { background: var(--bad); border-color: var(-
 /* ---- Panels, cards and tables ---- */
 .panel {
   background: var(--surface); border: 0; border-top: var(--rule) solid var(--ink);
-  border-radius: var(--radius); padding: 22px 0 6px; margin-bottom: 28px;
+  border-radius: var(--radius); padding: 22px 20px 6px; margin-bottom: 28px;
 }
 .panel.error { border-top-color: var(--bad); }
 .danger-zone { border-top-color: var(--bad); }
@@ -186,7 +191,7 @@ button.danger:hover:not(:disabled) { background: var(--bad); border-color: var(-
 .field > span { font-family: var(--display); font-stretch: 112%; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 input[type="text"], input[type="number"], textarea, select {
   font: inherit; width: 100%; padding: 10px 12px; border-radius: var(--radius);
-  border: var(--rule) solid var(--ink); background: #ffffff; color: var(--ink);
+  border: var(--rule) solid var(--ink); background: var(--field-bg); color: var(--field-ink);
 }
 select { width: auto; }
 textarea { resize: vertical; }
@@ -212,20 +217,20 @@ h2 + .question { border-top: 0; padding-top: 4px; }
 .qnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
 .qbtn {
   min-width: 44px; min-height: 44px; padding: 0; font-family: var(--mono); font-weight: 600; font-size: 14px;
-  text-transform: none; letter-spacing: 0; background: #ffffff;
+  text-transform: none; letter-spacing: 0; background: var(--field-bg); color: var(--field-ink);
 }
 .qbtn.current { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
-.qbtn.answered { background: var(--accent-tint); }
-.qbtn.flagged { border-color: var(--warn); color: var(--warn); }
+.qbtn.answered { background: var(--tint); color: var(--field-ink); }
+.qbtn.flagged { border-color: #8a5a0b; color: #8a5a0b; }
 .qbtn.current.flagged { color: var(--accent-text); }
 .prompt { font-size: 17px; line-height: 1.5; margin: 8px 0 16px; white-space: pre-wrap; }
 .choices { display: flex; flex-direction: column; gap: 10px; }
 .choice {
   display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; cursor: pointer;
-  border: 1.5px solid var(--ink); background: #ffffff; border-radius: var(--radius);
+  border: 1.5px solid var(--ink); background: var(--field-bg); color: var(--field-ink); border-radius: var(--radius);
 }
 .choice:hover { border-color: var(--accent); }
-.choice:has(input:checked) { background: var(--accent-tint); border: var(--rule) solid var(--accent); }
+.choice:has(input:checked) { background: var(--tint); border: var(--rule) solid var(--accent); }
 .choice span { white-space: pre-wrap; }
 .flag { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; cursor: pointer; }
 .attempt-actions { justify-content: space-between; margin-top: 12px; }
@@ -263,7 +268,7 @@ h2 + .question { border-top: 0; padding-top: 4px; }
   text-align: left; border: 0; background: none; padding: 10px 12px; border-radius: var(--radius);
   text-decoration: none; color: var(--ink); text-transform: none; font-family: inherit;
   font-stretch: 100%; font-weight: 500; font-size: 15px; letter-spacing: 0;
-  display: flex; align-items: center; min-height: 44px;
+  display: flex; align-items: center; justify-content: flex-start; min-height: 44px;
 }
 .menu-item:hover { background: var(--accent-tint); color: var(--ink); }
 .menu-item.danger { color: var(--bad); }
@@ -277,7 +282,7 @@ h2 + .question { border-top: 0; padding-top: 4px; }
   padding: 14px 0; margin-top: 8px; background: var(--bg); border-top: var(--rule) solid var(--ink);
 }
 
-.format { background: #ffffff; border: 1.5px solid var(--ink); padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 13px; }
+.format { background: var(--field-bg); color: var(--field-ink); border: 1.5px solid var(--ink); padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 13px; }
 
 .icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.15em; }
