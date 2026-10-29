@@ -1,0 +1,23 @@
+[package]
+name = "mocktest-worker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mocktest-db = { path = "../db" }
+mocktest-domain = { path = "../domain" }
+serde_json.workspace = true
+base64.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+js-sys.workspace = true
+web-sys = { version = "0.3", features = ["DedicatedWorkerGlobalScope", "MessageEvent"] }
+console_error_panic_hook.workspace = true
+rusqlite = { version = "0.41.1", default-features = false, features = ["ffi-sqlite-wasm-rs"] }
+sqlite-wasm-rs = { version = "0.6.2", features = ["wasm-bindgen"] }
+sqlite-wasm-vfs = { version = "0.3.0", features = ["sahpool"] }
+rsqlite-vfs = "0.2"

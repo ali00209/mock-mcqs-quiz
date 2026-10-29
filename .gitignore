@@ -1,0 +1,10 @@
+/target
+/dist
+/crates/web/dist
+/crates/web/public/worker
+/node_modules
+/tests/e2e/node_modules
+/tests/e2e/test-results
+/tests/e2e/playwright-report
+/.trunk
+.DS_Store

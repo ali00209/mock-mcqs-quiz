@@ -1,0 +1,19 @@
+[package]
+name = "mocktest-db"
+description = "SQLite schema and data access for MockTest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+mocktest-domain = { path = "../domain" }
+serde_json.workspace = true
+thiserror.workspace = true
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+rusqlite = { version = "0.41.1", default-features = false, features = ["ffi-sqlite-wasm-rs"] }
