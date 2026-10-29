@@ -128,6 +128,17 @@ impl Question {
     }
 }
 
+/// When the user is told whether an answer was right.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnswerFeedback {
+    /// Answers are marked only after the attempt is submitted.
+    #[default]
+    AfterSubmit,
+    /// Each answer is marked as soon as it is chosen.
+    OnTheGo,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct QuizSettings {
@@ -141,6 +152,8 @@ pub struct QuizSettings {
     pub pass_percent: Option<u8>,
     #[serde(default = "default_true")]
     pub one_at_a_time: bool,
+    #[serde(default)]
+    pub feedback: AnswerFeedback,
 }
 
 const fn default_true() -> bool {
@@ -155,6 +168,7 @@ impl Default for QuizSettings {
             shuffle_options: false,
             pass_percent: None,
             one_at_a_time: true,
+            feedback: AnswerFeedback::AfterSubmit,
         }
     }
 }
@@ -322,6 +336,8 @@ pub struct AttemptMeta {
     pub status: AttemptStatus,
     pub started_at: i64,
     pub deadline_at: Option<i64>,
+    pub paused: bool,
+    pub remaining_ms: Option<i64>,
     pub submitted_at: Option<i64>,
     pub correct_count: Option<u32>,
     pub total_count: u32,
@@ -373,6 +389,12 @@ pub struct AttemptQuestionView {
     pub prompt: String,
     pub kind: QuestionKind,
     pub options: Vec<AttemptOptionView>,
+    /// Filled only when the quiz gives feedback on the go; empty otherwise.
+    #[serde(default)]
+    pub correct_option_ids: Vec<String>,
+    /// Filled only when the quiz gives feedback on the go; empty otherwise.
+    #[serde(default)]
+    pub explanation: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -389,6 +411,11 @@ pub struct AttemptView {
     pub total_questions: u32,
     pub questions: Vec<AttemptQuestionView>,
     pub answers: Vec<SavedAnswer>,
+    pub feedback: AnswerFeedback,
+    /// True while the attempt is paused (the user left the quiz). The clock is stopped.
+    pub paused: bool,
+    /// Time left in milliseconds while paused. None when there is no time limit.
+    pub remaining_ms: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 
 const SCHEMA_V1: &str = r#"
 CREATE TABLE IF NOT EXISTS quizzes (
@@ -70,6 +70,13 @@ CREATE TABLE IF NOT EXISTS attempt_answers (
 );
 "#;
 
+/// Version 2: answer feedback per quiz, and pause state per attempt.
+const SCHEMA_V2: &str = r#"
+ALTER TABLE quizzes ADD COLUMN feedback TEXT NOT NULL DEFAULT 'after_submit';
+ALTER TABLE attempts ADD COLUMN paused INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE attempts ADD COLUMN remaining_ms INTEGER;
+"#;
+
 pub fn migrate(conn: &Connection) -> Result<(), String> {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
@@ -84,6 +91,16 @@ pub fn migrate(conn: &Connection) -> Result<(), String> {
         conn.execute_batch("BEGIN;")
             .map_err(|error| error.to_string())?;
         conn.execute_batch(SCHEMA_V1)
+            .map_err(|error| error.to_string())?;
+        conn.pragma_update(None, "user_version", 1)
+            .map_err(|error| error.to_string())?;
+        conn.execute_batch("COMMIT;")
+            .map_err(|error| error.to_string())?;
+    }
+    if version < 2 {
+        conn.execute_batch("BEGIN;")
+            .map_err(|error| error.to_string())?;
+        conn.execute_batch(SCHEMA_V2)
             .map_err(|error| error.to_string())?;
         conn.pragma_update(None, "user_version", SCHEMA_VERSION)
             .map_err(|error| error.to_string())?;

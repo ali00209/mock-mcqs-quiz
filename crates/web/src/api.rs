@@ -192,6 +192,18 @@ pub async fn get_attempt(id: &str) -> Result<AttemptView, String> {
     typed(Command::GetAttempt { id: id.into() }).await
 }
 
+pub async fn pause_attempt(id: &str) -> Result<(), String> {
+    typed(Command::PauseAttempt { id: id.into() }).await
+}
+
+pub async fn resume_attempt(id: &str) -> Result<(), String> {
+    typed(Command::ResumeAttempt { id: id.into() }).await
+}
+
+pub async fn delete_attempt(id: &str) -> Result<(), String> {
+    typed(Command::DeleteAttempt { id: id.into() }).await
+}
+
 pub async fn save_answer(
     attempt_id: &str,
     question_id: &str,
