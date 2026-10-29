@@ -207,18 +207,21 @@ fn attempt_view(session: Session, view: AttemptView, submit: impl Fn() + Copy + 
         <div class="questions">{cards}</div>
         <div class="actions attempt-actions">
             {one.then(|| {
+                // aria-disabled instead of disabled: a disabled button loses keyboard focus.
                 view! {
-                    <button disabled=move || session.index.get() == 0
-                        on:click=move |_| session.index.update(|i| *i = i.saturating_sub(1))>"Previous"</button>
+                    <div class="actions">
+                        <button aria-disabled=move || (session.index.get() == 0).then_some("true")
+                            on:click=move |_| session.index.update(|i| *i = i.saturating_sub(1))>"Previous"</button>
+                        <button aria-disabled=move || (session.index.get() + 1 >= total).then_some("true")
+                            on:click=move |_| {
+                                if session.index.get() + 1 < total {
+                                    session.index.update(|i| *i += 1);
+                                }
+                            }>"Next"</button>
+                    </div>
                 }
             })}
-            {one.then(|| {
-                view! {
-                    <button disabled=move || session.index.get() + 1 >= total
-                        on:click=move |_| session.index.update(|i| *i += 1)>"Next"</button>
-                }
-            })}
-            <button class="primary" on:click=move |_| submit()>"Submit attempt"</button>
+            <button class="primary submit" on:click=move |_| submit()>"Submit attempt"</button>
         </div>
     }
 }
@@ -285,13 +288,13 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
     view! {
         <section class="panel question" class:hidden=move || one && session.index.get() != position>
             <div class="question-head">
-                <strong>{format!("Question {}", position + 1)}</strong>
+                <h2 class="question-title">{format!("Question {}", position + 1)}</h2>
                 <span class="muted">{if kind == QuestionKind::Single { "Choose one" } else { "Choose all that apply" }}</span>
                 <label class="flag">
                     <input type="checkbox"
                         prop:checked=move || session.answer(&qid.get_value()).flagged
                         on:change=move |ev| session.set_flag(&qid.get_value(), event_target_checked(&ev))/>
-                    " Flag"
+                    "Flag"
                 </label>
             </div>
             <p class="prompt">{q.prompt}</p>
@@ -389,7 +392,7 @@ fn review_question(index: usize, q: ReviewQuestion) -> impl IntoView {
     view! {
         <section class={class}>
             <div class="question-head">
-                <strong>{format!("Question {}", index + 1)}</strong>
+                <h2 class="question-title">{format!("Question {}", index + 1)}</h2>
                 <span class={badge_class}>{badge_text}</span>
                 {q.flagged.then(|| view! { <span class="badge warn">"Flagged"</span> })}
             </div>

@@ -9,7 +9,8 @@
   --ok: #1f8a4c;
   --bad: #c73c3c;
   --warn: #8a5a0b;
-  --radius: 10px;
+  --radius: 12px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   color-scheme: light;
 }
 
@@ -47,7 +48,7 @@ a { color: var(--accent); }
   position: sticky; top: 0; z-index: 5;
 }
 .topbar nav { display: flex; gap: 16px; }
-.topbar nav a { text-decoration: none; color: var(--muted); }
+.topbar nav a { text-decoration: none; color: var(--muted); display: inline-flex; align-items: center; min-height: 44px; }
 .topbar nav a:hover { color: var(--text); }
 .brand { font-weight: 700; color: var(--text) !important; text-decoration: none; font-size: 17px; }
 
@@ -77,8 +78,8 @@ button, .button {
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   text-decoration: none; display: inline-block;
 }
-button:hover:not(:disabled), .button:hover { border-color: var(--accent); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:hover:not(:disabled):not([aria-disabled="true"]), .button:hover { border-color: var(--accent); }
+button:disabled, button[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
 button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 button.danger { color: var(--bad); }
 button.danger:hover:not(:disabled) { border-color: var(--bad); }
@@ -148,15 +149,14 @@ textarea { resize: vertical; }
 .choice span { white-space: pre-wrap; }
 .flag { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 13px; cursor: pointer; }
 .attempt-actions { justify-content: space-between; margin-top: 8px; }
+.attempt-actions .submit { margin-left: auto; }
 
 .score { text-align: center; padding: 28px; }
 .score .big { font-size: 48px; font-weight: 700; }
 .pass { color: var(--ok); font-weight: 600; }
 .fail { color: var(--bad); font-weight: 600; }
 
-.review-q { border-left: 4px solid var(--border); }
-.review-q.ok { border-left-color: var(--ok); }
-.review-q.bad { border-left-color: var(--bad); }
+/* Correct/Incorrect is carried by the badge; no coloured side border. */
 .review-options { list-style: none; padding: 0; margin: 8px 0; }
 .review-options li { padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; color: var(--muted); }
 .review-options li.correct { color: var(--ok); }
@@ -164,7 +164,8 @@ textarea { resize: vertical; }
 .explanation { background: var(--bg); border-radius: 8px; padding: 10px 12px; }
 
 @media (max-width: 600px) {
-  .topbar { flex-direction: column; gap: 8px; }
+  .topbar { flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 16px; }
+  .topbar nav { justify-content: space-between; gap: 8px; }
   .option-row { grid-template-columns: auto 1fr; }
   .option-row button { grid-column: 2; justify-self: end; }
 }
@@ -193,16 +194,26 @@ button, .button { min-height: 40px; }
 .menu { position: relative; }
 .menu > summary { list-style: none; }
 .menu > summary::-webkit-details-marker { display: none; }
+.menu > summary.button { min-height: 44px; }
 .menu-items {
   position: absolute; right: 0; top: calc(100% + 4px); z-index: 4; min-width: 180px;
   display: flex; flex-direction: column; padding: 4px; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow);
 }
 .menu-item {
   text-align: left; border: none; background: none; padding: 8px 12px; border-radius: 6px;
   text-decoration: none; color: var(--text);
+  display: flex; align-items: center; min-height: 44px;
 }
+.question-title { font-size: 16px; margin: 0; }
+
+/* Questions in the editor sit as rows in their panel, not as boxes inside a box. */
+.panel > .question { border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 16px 0; margin: 0; }
+h2 + .question { border-top: 0; padding-top: 4px; }
+
+/* Long titles, prompts and answers wrap instead of pushing past their container. */
+h1, h2, .prompt, .choice span, .table td, .card-title { overflow-wrap: anywhere; }
 .menu-item:hover { background: var(--bg); }
 .menu-item.danger { color: var(--bad); }
 
