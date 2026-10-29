@@ -12,6 +12,7 @@ use crate::icons;
 
 use crate::api;
 use crate::ui::{self, Ui};
+use crate::kit::ui::button::{Button, ButtonVariant};
 
 #[derive(Clone, Default)]
 struct Answer {
@@ -257,19 +258,19 @@ fn attempt_view(
                 // aria-disabled instead of disabled: a disabled button loses keyboard focus.
                 view! {
                     <div class="actions">
-                        <button aria-disabled=move || (session.index.get() == 0).then_some("true")
-                            on:click=move |_| session.index.update(|i| *i = i.saturating_sub(1))>"Previous"</button>
-                        <button aria-disabled=move || (session.index.get() + 1 >= total).then_some("true")
+                        <Button variant=ButtonVariant::Outline attr:aria-disabled=move || (session.index.get() == 0).then_some("true")
+                            on:click=move |_| session.index.update(|i| *i = i.saturating_sub(1))>"Previous"</Button>
+                        <Button variant=ButtonVariant::Outline attr:aria-disabled=move || (session.index.get() + 1 >= total).then_some("true")
                             on:click=move |_| {
                                 if session.index.get() + 1 < total {
                                     session.index.update(|i| *i += 1);
                                 }
-                            }>"Next"</button>
+                            }>"Next"</Button>
                     </div>
                 }
             })}
-            <button class="danger" on:click=move |_| quit()>"Quit attempt"</button>
-            <button class="primary submit" on:click=move |_| submit()>"Submit attempt"</button>
+            <Button variant=ButtonVariant::Destructive on:click=move |_| quit()>"Quit attempt"</Button>
+            <Button variant=ButtonVariant::Default class="submit" on:click=move |_| submit()>"Submit attempt"</Button>
         </div>
     }
 }
@@ -425,7 +426,7 @@ fn review_view(ui: Ui, review: AttemptReview) -> impl IntoView {
             <div class="actions">
                 <a class="button" href="#/">"Library"</a>
                 {retake_quiz.map(|quiz_id| {
-                    view! { <button class="primary" on:click=move |_| retake(ui, quiz_id.clone())>"Retake"</button> }
+                    view! { <Button variant=ButtonVariant::Default on:click=move |_| retake(ui, quiz_id.clone())>"Retake"</Button> }
                 })}
             </div>
         </div>

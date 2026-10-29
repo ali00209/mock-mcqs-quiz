@@ -8,3 +8,4 @@
 /tests/e2e/playwright-report
 /.trunk
 .DS_Store
+crates/web/tailwind/node_modules/

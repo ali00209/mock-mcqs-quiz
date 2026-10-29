@@ -34,6 +34,48 @@ web-sys = { version = "0.3", features = [
     "Url",
     "Window",
     "Worker",
+    "Storage",
+    "Navigator",
+    "MediaQueryList",
+    "MutationObserver",
+    "MutationObserverInit",
+    "MutationRecord",
+    "NodeList",
+    "Element",
+    "DocumentFragment",
+    "HtmlElement",
+    "CssStyleDeclaration",
+    "KeyboardEvent",
+    "MouseEvent",
+    "PointerEvent",
+    "TouchEvent",
+    "DomRect",
+    "ScrollBehavior",
+    "ScrollIntoViewOptions",
+    "ResizeObserver",
+    "ResizeObserverEntry",
+    "ResizeObserverSize",
+    "Range",
+    "Selection",
+    "ClipboardEvent",
+    "DataTransfer",
+    "DragEvent",
+    "Clipboard",
+    "Performance",
+    "Crypto",
+    "CustomEvent",
+    "CustomEventInit",
+    "History",
+    "Location",
+    "Storage",
     "WorkerOptions",
     "WorkerType",
 ] }
+leptos_ui = "0.3.22"
+tw_merge = "0.1.22"
+leptos_router = "0.8"
+strum = "0.28.0"
+time = "0.3.55"
+validator = "0.21.0"
+heck = "0.5.0"
+rust_icons = { version = "0.19", package = "icons", features = ["leptos", "leptos_animated"] }

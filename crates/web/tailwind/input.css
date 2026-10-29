@@ -1,0 +1,45 @@
+/*
+ * Tailwind input for the rust/ui components in src/kit.
+ * Regenerate with scripts/build-css.sh. The output, tailwind.css, is committed,
+ * so the Trunk build needs no Node.js.
+ *
+ * Colours point at the tokens in styles.css, so the components follow the
+ * vintage design (DESIGN.md) in light and dark mode. Corners are square.
+ * Preflight is left out: styles.css already sets the base styles.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@source "../src";
+
+@theme {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-text);
+  --color-secondary: var(--surface);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--tint);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--tint);
+  --color-accent-foreground: var(--tint-ink);
+  --color-destructive: var(--bad);
+  --color-destructive-foreground: #ffffff;
+  --color-border: var(--ink);
+  --color-input: var(--ink);
+  --color-ring: var(--accent);
+
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+
+  --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}

@@ -1,0 +1,8 @@
+{
+  "name": "mocktest-tailwind",
+  "private": true,
+  "devDependencies": {
+    "tailwindcss": "4.3.3",
+    "@tailwindcss/cli": "4.3.3"
+  }
+}
