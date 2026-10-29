@@ -80,7 +80,7 @@ fn App() -> impl IntoView {
                 Page::History => view! { <History ui=ui/> }.into_any(),
                 Page::Data => view! { <Data ui=ui/> }.into_any(),
                 Page::Edit(id) => view! { <editor::Editor ui=ui id=id/> }.into_any(),
-                Page::Attempt(id) => view! { <attempt::Attempt ui=ui id=id/> }.into_any(),
+                Page::Attempt(id) => view! { <attempt::Attempt id=id/> }.into_any(),
                 Page::Review(id) => view! { <attempt::Review ui=ui id=id/> }.into_any(),
                 Page::NotFound => view! { <p class="muted">"Page not found."</p> }.into_any(),
             }}

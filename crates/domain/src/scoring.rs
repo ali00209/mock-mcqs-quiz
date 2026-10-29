@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::model::{
-    AttemptMeta, AttemptOptionView, AttemptQuestionView, AttemptReview, AttemptView, QuestionKind,
-    Quiz, ReviewOption, ReviewQuestion, SavedAnswer,
+    AnswerFeedback, AttemptMeta, AttemptOptionView, AttemptQuestionView, AttemptReview,
+    AttemptView, QuestionKind, Quiz, ReviewOption, ReviewQuestion, SavedAnswer,
 };
 use crate::shuffle::{seed_for, shuffled_order};
 
@@ -129,18 +129,33 @@ impl AttemptSnapshot {
         let questions = self
             .questions
             .iter()
-            .map(|question| AttemptQuestionView {
-                id: question.id.clone(),
-                prompt: question.prompt.clone(),
-                kind: question.kind,
-                options: question
-                    .options
-                    .iter()
-                    .map(|option| AttemptOptionView {
-                        id: option.id.clone(),
-                        text: option.text.clone(),
-                    })
-                    .collect(),
+            .map(|question| {
+                // Correct answers are sent only when the quiz marks answers as they go.
+                let on_the_go = self.settings.feedback == AnswerFeedback::OnTheGo;
+                AttemptQuestionView {
+                    id: question.id.clone(),
+                    prompt: question.prompt.clone(),
+                    kind: question.kind,
+                    options: question
+                        .options
+                        .iter()
+                        .map(|option| AttemptOptionView {
+                            id: option.id.clone(),
+                            text: option.text.clone(),
+                        })
+                        .collect(),
+                    correct_option_ids: if on_the_go {
+                        question
+                            .options
+                            .iter()
+                            .filter(|option| option.is_correct)
+                            .map(|option| option.id.clone())
+                            .collect()
+                    } else {
+                        Vec::new()
+                    },
+                    explanation: if on_the_go { question.explanation.clone() } else { String::new() },
+                }
             })
             .collect();
 
@@ -172,6 +187,9 @@ impl AttemptSnapshot {
             total_questions: self.questions.len() as u32,
             questions,
             answers,
+            feedback: self.settings.feedback,
+            paused: meta.paused,
+            remaining_ms: meta.remaining_ms,
         }
     }
 

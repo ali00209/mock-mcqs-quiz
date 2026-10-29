@@ -22,11 +22,12 @@ struct Answer {
 /// Handles shared by every part of the attempt screen. All fields are Copy.
 #[derive(Clone, Copy)]
 struct Session {
-    ui: Ui,
     attempt_id: StoredValue<String>,
     answers: RwSignal<HashMap<String, Answer>>,
     index: RwSignal<usize>,
     now: RwSignal<i64>,
+    /// Problem reported by the last action, shown at the top of the page.
+    problem: RwSignal<Option<String>>,
 }
 
 impl Session {
@@ -37,16 +38,17 @@ impl Session {
     /// Updates the local copy at once, then saves it. The worker reports when
     /// the time has run out, and the attempt then moves to review.
     fn save(&self, question_id: String, selected: Vec<String>, flagged: bool) {
-        let ui = self.ui;
+        let problem = self.problem;
         self.answers.update(|m| {
             m.insert(question_id.clone(), Answer { selected: selected.clone(), flagged });
         });
         let attempt_id = self.attempt_id.get_value();
+        problem.set(None);
         spawn_local(async move {
             match api::save_answer(&attempt_id, &question_id, selected, flagged).await {
                 Ok(result) if result.auto_submitted => ui::go(&format!("#/review/{attempt_id}")),
                 Ok(_) => {}
-                Err(error) => ui.notify(error, true),
+                Err(error) => problem.set(Some(error)),
             }
         });
     }
@@ -81,22 +83,27 @@ impl Session {
 }
 
 #[component]
-pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
+pub fn Attempt(id: String) -> impl IntoView {
     let state = RwSignal::new(None::<Result<AttemptView, String>>);
     let answers = RwSignal::new(HashMap::<String, Answer>::new());
     let index = RwSignal::new(0usize);
     let now = RwSignal::new(ui::now_ms());
+    let problem = RwSignal::new(None::<String>);
     let session = Session {
-        ui,
         attempt_id: StoredValue::new(id.clone()),
         answers,
         index,
         now,
+        problem,
     };
 
+    // Opening the attempt restarts its clock, if the user left it paused.
     spawn_local(async move {
-        match api::get_attempt(&id).await {
-            Ok(view) if view.status == AttemptStatus::InProgress => {
+        let resumed = api::resume_attempt(&id).await;
+        let fetched = api::get_attempt(&id).await;
+        match (resumed, fetched) {
+            (Err(error), _) | (_, Err(error)) => state.set(Some(Err(error))),
+            (Ok(()), Ok(view)) if view.status == AttemptStatus::InProgress => {
                 let saved: HashMap<String, Answer> = view
                     .answers
                     .iter()
@@ -107,9 +114,26 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
                 answers.set(saved);
                 state.set(Some(Ok(view)));
             }
-            Ok(view) => ui::go(&format!("#/review/{}", view.id)),
-            Err(error) => state.set(Some(Err(error))),
+            (Ok(()), Ok(view)) => ui::go(&format!("#/review/{}", view.id)),
         }
+    });
+
+    // Stops the clock when the user leaves: on leaving this page, and when the window closes.
+    let pause = move || {
+        let attempt_id = session.attempt_id.get_value();
+        spawn_local(async move {
+            // Best effort: a page that is closing may not get to finish this request.
+            let _ = api::pause_attempt(&attempt_id).await;
+        });
+    };
+    on_cleanup(move || pause());
+    let on_hide = Closure::<dyn FnMut()>::new(move || pause());
+    let _ = ui::win().add_event_listener_with_callback("pagehide", on_hide.as_ref().unchecked_ref());
+    let on_hide = StoredValue::new_local(on_hide);
+    on_cleanup(move || {
+        let listener: js_sys::Function =
+            on_hide.with_value(|callback| callback.as_ref().unchecked_ref::<js_sys::Function>().clone());
+        let _ = ui::win().remove_event_listener_with_callback("pagehide", &listener);
     });
 
     // Refresh the clock every second.
@@ -160,19 +184,37 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
         spawn_local(async move {
             match api::submit_attempt(&attempt_id).await {
                 Ok(_) => ui::go(&format!("#/review/{attempt_id}")),
-                Err(error) => ui.notify(error, true),
+                Err(error) => problem.set(Some(error)),
+            }
+        });
+    };
+
+    let quit = move || {
+        if !ui::confirm("Quit this attempt? It will be discarded and can't be resumed.") {
+            return;
+        }
+        let attempt_id = session.attempt_id.get_value();
+        spawn_local(async move {
+            match api::delete_attempt(&attempt_id).await {
+                Ok(()) => ui::go("#/"),
+                Err(error) => problem.set(Some(error)),
             }
         });
     };
 
     move || match state.get() {
         None => view! { <p class="muted">"Loading…"</p> }.into_any(),
-        Some(Err(error)) => view! { <p class="error">{error}</p> }.into_any(),
-        Some(Ok(view)) => attempt_view(session, view, submit).into_any(),
+        Some(Err(error)) => view! { <p class="panel error" role="alert">{error}</p> }.into_any(),
+        Some(Ok(view)) => attempt_view(session, view, submit, quit).into_any(),
     }
 }
 
-fn attempt_view(session: Session, view: AttemptView, submit: impl Fn() + Copy + 'static) -> impl IntoView {
+fn attempt_view(
+    session: Session,
+    view: AttemptView,
+    submit: impl Fn() + Copy + 'static,
+    quit: impl Fn() + Copy + 'static,
+) -> impl IntoView {
     let total = view.questions.len();
     let one = view.one_at_a_time;
     let deadline = view.deadline_at;
@@ -186,6 +228,11 @@ fn attempt_view(session: Session, view: AttemptView, submit: impl Fn() + Copy + 
         .collect();
 
     view! {
+        {move || {
+            session.problem.get().map(|message| {
+                view! { <div class="panel error" role="alert">{message}</div> }
+            })
+        }}
         <div class="attempt-head">
             <h1>{title}</h1>
             <div class="timer" role="timer">{move || match deadline {
@@ -221,6 +268,7 @@ fn attempt_view(session: Session, view: AttemptView, submit: impl Fn() + Copy + 
                     </div>
                 }
             })}
+            <button class="danger" on:click=move |_| quit()>"Quit attempt"</button>
             <button class="primary submit" on:click=move |_| submit()>"Submit attempt"</button>
         </div>
     }
@@ -268,6 +316,19 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
     let input_type = if kind == QuestionKind::Single { "radio" } else { "checkbox" };
     let group = format!("q-{}", q.id);
 
+    // Empty unless the quiz gives feedback on the go, so no feedback is shown otherwise.
+    let show_feedback = !q.correct_option_ids.is_empty();
+    let correct_key = StoredValue::new(q.correct_option_ids.clone());
+    let correct_text = StoredValue::new(
+        q.options
+            .iter()
+            .filter(|option| q.correct_option_ids.contains(&option.id))
+            .map(|option| option.text.clone())
+            .collect::<Vec<_>>()
+            .join(", "),
+    );
+    let explanation = StoredValue::new(q.explanation.clone());
+
     let choices = q
         .options
         .into_iter()
@@ -285,6 +346,32 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
         })
         .collect_view();
 
+    // Shown once the question has an answer, when the quiz marks answers as they go.
+    let feedback = move || {
+        let mut chosen = session.answer(&qid.get_value()).selected;
+        if !show_feedback || chosen.is_empty() {
+            return None;
+        }
+        chosen.sort();
+        let correct = correct_key.with_value(|ids| {
+            let mut ids = ids.clone();
+            ids.sort();
+            ids == chosen
+        });
+        let (class, text) = if correct {
+            ("feedback ok", "Correct.".to_string())
+        } else {
+            ("feedback bad", format!("Not quite. The correct answer is {}.", correct_text.get_value()))
+        };
+        let explanation = explanation.get_value();
+        Some(view! {
+            <div class={class} role="status">
+                <strong>{text}</strong>
+                {(!explanation.is_empty()).then(|| view! { <p>{explanation}</p> })}
+            </div>
+        })
+    };
+
     view! {
         <section class="panel question" class:hidden=move || one && session.index.get() != position>
             <div class="question-head">
@@ -299,6 +386,7 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
             </div>
             <p class="prompt">{q.prompt}</p>
             <div class="choices">{choices}</div>
+            {feedback}
         </section>
     }
 }

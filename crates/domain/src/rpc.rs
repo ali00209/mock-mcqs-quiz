@@ -47,6 +47,12 @@ pub enum Command {
     DeleteAttempt {
         id: String,
     },
+    PauseAttempt {
+        id: String,
+    },
+    ResumeAttempt {
+        id: String,
+    },
     ClearHistory,
     BackupDatabase,
     RestoreDatabase {

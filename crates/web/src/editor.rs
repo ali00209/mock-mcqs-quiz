@@ -3,9 +3,24 @@
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use mocktest_domain::{
-    AnswerOption, MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, Question, QuestionKind, Quiz, QuizSource,
-    parse_quiz_text,
+    AnswerFeedback, AnswerOption, MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, Question, QuestionKind,
+    Quiz, QuizSource, parse_quiz_text,
 };
+
+fn feedback_value(feedback: AnswerFeedback) -> &'static str {
+    match feedback {
+        AnswerFeedback::AfterSubmit => "after_submit",
+        AnswerFeedback::OnTheGo => "on_the_go",
+    }
+}
+
+fn feedback_from_value(value: &str) -> AnswerFeedback {
+    if value == "on_the_go" {
+        AnswerFeedback::OnTheGo
+    } else {
+        AnswerFeedback::AfterSubmit
+    }
+}
 
 use crate::api;
 use crate::icons;
@@ -108,14 +123,33 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
         status.set(None);
         spawn_local(async move {
             match api::save_quiz(next.clone()).await {
-                Ok(saved) => {
+                Ok(_) => {
+                    // Saved: back to the library.
                     baseline.set_value(next);
-                    draft.set(saved);
-                    status.set(Some(("Saved.".to_string(), false)));
+                    ui::go("#/");
                 }
                 Err(error) => status.set(Some((error, true))),
             }
             saving.set(false);
+        });
+    };
+
+    // Starts an attempt from the saved version of the quiz.
+    let start = move || {
+        if saving.get_untracked() {
+            return;
+        }
+        if is_dirty() {
+            status.set(Some(("Save your changes before starting the quiz.".to_string(), true)));
+            return;
+        }
+        let quiz_id = draft.with_untracked(|q| q.id.clone());
+        status.set(None);
+        spawn_local(async move {
+            match api::start_attempt(&quiz_id, ui::new_seed()).await {
+                Ok(attempt) => ui::go(&format!("#/attempt/{}", attempt.id)),
+                Err(error) => status.set(Some((error, true))),
+            }
         });
     };
 
@@ -184,6 +218,15 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
                     on:change=move |ev| draft.update(|q| q.settings.one_at_a_time = event_target_checked(&ev))/>
                 <span>"Show one question at a time"</span>
             </label>
+            <label class="field">
+                <span>"Answer feedback"</span>
+                <select
+                    prop:value=move || draft.with(|q| feedback_value(q.settings.feedback))
+                    on:change=move |ev| draft.update(|q| q.settings.feedback = feedback_from_value(&event_target_value(&ev)))>
+                    <option value="after_submit">"Show answers after submitting"</option>
+                    <option value="on_the_go">"Show each answer as I go"</option>
+                </select>
+            </label>
         </section>
 
         {text_import(draft)}
@@ -225,6 +268,7 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
                     view! { <p class={class} role={role}>{message}</p> }
                 })
             }}
+            <button class="button" disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</button>
             <button class="button" on:click=move |_| exit()>"Exit without saving"</button>
             <button class="primary" disabled=move || saving.get() on:click=move |_| save()>
                 {move || if saving.get() { "Saving…" } else { "Save quiz" }}

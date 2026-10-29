@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use mocktest_domain::{
-    AttemptMeta, AttemptReview, AttemptSnapshot, AttemptStatus, AttemptSummary, AttemptView,
-    BootstrapData, Command, QuestionKind, Quiz, QuizSettings, QuizSource,
+    AnswerFeedback, AttemptMeta, AttemptReview, AttemptSnapshot, AttemptStatus, AttemptSummary,
+    AttemptView, BootstrapData, Command, QuestionKind, Quiz, QuizSettings, QuizSource,
     QuizSummary, SavedAnswer, SaveAnswerResult, export_quiz, import_quiz, new_id, read_pack,
 };
 use rusqlite::{Connection, OptionalExtension, Row, params};
@@ -98,6 +98,14 @@ pub fn dispatch(conn: &Connection, command: Command, now: i64) -> Result<Value, 
             clear_history(conn)?;
             Ok(Value::Null)
         }
+        Command::PauseAttempt { id } => {
+            pause_attempt(conn, &id, now)?;
+            Ok(Value::Null)
+        }
+        Command::ResumeAttempt { id } => {
+            resume_attempt(conn, &id, now)?;
+            Ok(Value::Null)
+        }
         Command::BackupDatabase | Command::RestoreDatabase { .. } | Command::ResetData => {
             Err(DbError::Invalid(
                 "This operation is handled by the database worker.".to_string(),
@@ -141,6 +149,21 @@ fn tags_to_json(tags: &[String]) -> String {
     serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string())
 }
 
+fn feedback_from_db(value: &str) -> AnswerFeedback {
+    if value == "on_the_go" {
+        AnswerFeedback::OnTheGo
+    } else {
+        AnswerFeedback::AfterSubmit
+    }
+}
+
+fn feedback_to_db(value: AnswerFeedback) -> &'static str {
+    match value {
+        AnswerFeedback::AfterSubmit => "after_submit",
+        AnswerFeedback::OnTheGo => "on_the_go",
+    }
+}
+
 fn quiz_from_row(row: &Row<'_>) -> rusqlite::Result<Quiz> {
     let time_limit: Option<i64> = row.get(5)?;
     let pass_percent: Option<i64> = row.get(8)?;
@@ -157,6 +180,7 @@ fn quiz_from_row(row: &Row<'_>) -> rusqlite::Result<Quiz> {
             shuffle_options: row.get::<_, i64>(7)? != 0,
             pass_percent: pass_percent.map(|value| value.clamp(0, 100) as u8),
             one_at_a_time: row.get::<_, i64>(9)? != 0,
+            feedback: feedback_from_db(&row.get::<_, String>(14)?),
         },
         questions: Vec::new(),
         source: if source == "sample" {
@@ -175,7 +199,7 @@ fn load_quiz(conn: &Connection, id: &str) -> Result<Quiz, DbError> {
         .query_row(
             "SELECT id, title, description, category, tags_json, time_limit_secs,
                     shuffle_questions, shuffle_options, pass_percent, one_at_a_time,
-                    source, sample_slug, created_at, updated_at
+                    source, sample_slug, created_at, updated_at, feedback
              FROM quizzes WHERE id = ?1",
             [id],
             quiz_from_row,
@@ -266,8 +290,8 @@ fn insert_quiz(conn: &Connection, quiz: &Quiz) -> Result<(), DbError> {
         "INSERT INTO quizzes (
             id, title, description, category, tags_json, time_limit_secs,
             shuffle_questions, shuffle_options, pass_percent, one_at_a_time,
-            source, sample_slug, ready, created_at, updated_at
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            source, sample_slug, ready, created_at, updated_at, feedback
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
         params![
             quiz.id,
             quiz.title,
@@ -287,6 +311,7 @@ fn insert_quiz(conn: &Connection, quiz: &Quiz) -> Result<(), DbError> {
             i64::from(quiz.is_ready()),
             quiz.created_at,
             quiz.updated_at,
+            feedback_to_db(quiz.settings.feedback),
         ],
     )?;
     insert_questions(conn, quiz)?;
@@ -298,7 +323,8 @@ fn update_quiz(conn: &Connection, quiz: &Quiz) -> Result<(), DbError> {
         "UPDATE quizzes SET
             title = ?2, description = ?3, category = ?4, tags_json = ?5,
             time_limit_secs = ?6, shuffle_questions = ?7, shuffle_options = ?8,
-            pass_percent = ?9, one_at_a_time = ?10, ready = ?11, updated_at = ?12
+            pass_percent = ?9, one_at_a_time = ?10, ready = ?11, updated_at = ?12,
+            feedback = ?13
          WHERE id = ?1",
         params![
             quiz.id,
@@ -313,6 +339,7 @@ fn update_quiz(conn: &Connection, quiz: &Quiz) -> Result<(), DbError> {
             i64::from(quiz.settings.one_at_a_time as u8),
             i64::from(quiz.is_ready()),
             quiz.updated_at,
+            feedback_to_db(quiz.settings.feedback),
         ],
     )?;
     if changed == 0 {
@@ -436,6 +463,8 @@ fn attempt_meta_from_row(row: &Row<'_>) -> rusqlite::Result<AttemptMeta> {
         status: AttemptStatus::from_db(&status),
         started_at: row.get(4)?,
         deadline_at: row.get(5)?,
+        paused: row.get::<_, i64>(12)? != 0,
+        remaining_ms: row.get(13)?,
         submitted_at: row.get(6)?,
         correct_count: row.get::<_, Option<i64>>(7)?.map(|value| value.max(0) as u32),
         total_count: row.get::<_, i64>(8)?.max(0) as u32,
@@ -446,7 +475,8 @@ fn attempt_meta_from_row(row: &Row<'_>) -> rusqlite::Result<AttemptMeta> {
 }
 
 const ATTEMPT_COLUMNS: &str = "id, quiz_id, quiz_title, status, started_at, deadline_at,
-    submitted_at, correct_count, total_count, score_percent, passed, duration_ms";
+    submitted_at, correct_count, total_count, score_percent, passed, duration_ms,
+    paused, remaining_ms";
 
 fn load_attempt_meta(conn: &Connection, id: &str) -> Result<AttemptMeta, DbError> {
     conn.query_row(
@@ -581,6 +611,11 @@ fn save_answer(
             auto_submitted: true,
         });
     }
+    if meta.paused {
+        return Err(DbError::Invalid(
+            "This attempt is paused. Resume it to keep answering.".to_string(),
+        ));
+    }
     let snapshot = load_snapshot(conn, attempt_id)?;
     let question = snapshot
         .questions
@@ -645,6 +680,40 @@ fn finish_attempt(conn: &Connection, attempt_id: &str, now: i64) -> Result<(), D
             score.passed.map(|value| value as i64),
             duration,
         ],
+    )?;
+    Ok(())
+}
+
+/// Stops the clock. The time left is kept, so resuming continues from it.
+fn pause_attempt(conn: &Connection, id: &str, now: i64) -> Result<(), DbError> {
+    let meta = load_attempt_meta(conn, id)?;
+    if meta.status != AttemptStatus::InProgress || meta.paused {
+        return Ok(());
+    }
+    if let Some(deadline) = meta.deadline_at
+        && deadline <= now
+    {
+        // The time ran out before the user left, so the attempt finishes now.
+        return finish_attempt(conn, id, now);
+    }
+    let remaining = meta.deadline_at.map(|deadline| deadline - now);
+    conn.execute(
+        "UPDATE attempts SET paused = 1, remaining_ms = ?2, deadline_at = NULL WHERE id = ?1",
+        params![id, remaining],
+    )?;
+    Ok(())
+}
+
+/// Restarts the clock from the time that was left when the attempt was paused.
+fn resume_attempt(conn: &Connection, id: &str, now: i64) -> Result<(), DbError> {
+    let meta = load_attempt_meta(conn, id)?;
+    if meta.status != AttemptStatus::InProgress || !meta.paused {
+        return Ok(());
+    }
+    let deadline = meta.remaining_ms.map(|remaining| now + remaining);
+    conn.execute(
+        "UPDATE attempts SET paused = 0, remaining_ms = NULL, deadline_at = ?2 WHERE id = ?1",
+        params![id, deadline],
     )?;
     Ok(())
 }
@@ -1046,5 +1115,101 @@ mod tests {
             .unwrap();
         assert_eq!(attempt.status, AttemptStatus::Expired);
         assert_eq!(attempt.correct_count, Some(0));
+    }
+
+    /// Ids are prefixed with `tag`, because question and option ids must be unique across quizzes.
+    fn one_question_quiz(conn: &Connection, tag: &str, time_limit: Option<u32>, feedback: AnswerFeedback) -> String {
+        let mut quiz = create_quiz(conn, 2_000).unwrap();
+        quiz.title = format!("Quiz {tag}");
+        quiz.questions = vec![Question {
+            id: format!("{tag}-q1"),
+            prompt: "Pick A".into(),
+            explanation: "A is right".into(),
+            kind: QuestionKind::Single,
+            options: vec![
+                AnswerOption {
+                    id: format!("{tag}-a"),
+                    text: "A".into(),
+                    is_correct: true,
+                },
+                AnswerOption {
+                    id: format!("{tag}-b"),
+                    text: "B".into(),
+                    is_correct: false,
+                },
+            ],
+        }];
+        quiz.source = QuizSource::User;
+        quiz.sample_slug = None;
+        quiz.settings.time_limit_secs = time_limit;
+        quiz.settings.feedback = feedback;
+        save_quiz(conn, quiz, 2_000).unwrap().id
+    }
+
+    fn attempt_view(conn: &Connection, id: &str, now: i64) -> AttemptView {
+        serde_json::from_value(
+            dispatch(conn, Command::GetAttempt { id: id.into() }, now).unwrap(),
+        )
+        .unwrap()
+    }
+
+    fn start(conn: &Connection, quiz_id: String, now: i64) -> AttemptView {
+        serde_json::from_value(
+            dispatch(conn, Command::StartAttempt { quiz_id, seed: 1 }, now).unwrap(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn pause_stops_the_clock_and_resume_restarts_it() {
+        let conn = seeded();
+        let quiz_id = one_question_quiz(&conn, "timed", Some(60), AnswerFeedback::AfterSubmit);
+        let started = start(&conn, quiz_id, 3_000);
+        let id = started.id.clone();
+        assert_eq!(started.deadline_at, Some(63_000));
+
+        // Leave after 10 seconds: 50 seconds are kept.
+        dispatch(&conn, Command::PauseAttempt { id: id.clone() }, 13_000).unwrap();
+        let paused = attempt_view(&conn, &id, 500_000);
+        assert!(paused.paused);
+        assert_eq!(paused.remaining_ms, Some(50_000));
+        assert_eq!(paused.deadline_at, None);
+        assert_eq!(paused.status, AttemptStatus::InProgress);
+
+        // Answers are refused while paused.
+        let refused = dispatch(
+            &conn,
+            Command::SaveAnswer {
+                attempt_id: id.clone(),
+                question_id: "timed-q1".into(),
+                selected: vec!["timed-a".into()],
+                flagged: false,
+            },
+            500_000,
+        );
+        assert!(refused.is_err());
+
+        // Resuming at 100 seconds gives back the 50 seconds that were left.
+        dispatch(&conn, Command::ResumeAttempt { id: id.clone() }, 100_000).unwrap();
+        let resumed = attempt_view(&conn, &id, 100_000);
+        assert!(!resumed.paused);
+        assert_eq!(resumed.deadline_at, Some(150_000));
+        assert_eq!(attempt_view(&conn, &id, 149_000).status, AttemptStatus::InProgress);
+        assert_eq!(attempt_view(&conn, &id, 150_000).status, AttemptStatus::Expired);
+    }
+
+    #[test]
+    fn on_the_go_feedback_sends_correct_answers_only_when_enabled() {
+        let conn = seeded();
+        let after = one_question_quiz(&conn, "after", None, AnswerFeedback::AfterSubmit);
+        let view = start(&conn, after, 3_000);
+        assert!(view.questions[0].correct_option_ids.is_empty());
+        assert!(view.questions[0].explanation.is_empty());
+
+        let live = one_question_quiz(&conn, "live", None, AnswerFeedback::OnTheGo);
+        let view = start(&conn, live, 3_000);
+        assert_eq!(view.feedback, AnswerFeedback::OnTheGo);
+        assert_eq!(view.questions[0].correct_option_ids, vec!["live-a".to_string()]);
+        assert_eq!(view.questions[0].explanation, "A is right");
     }
 }
