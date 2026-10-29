@@ -209,7 +209,7 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
     }
 }
 
-
+fn new_quiz(ui: Ui) {
     spawn_local(async move {
         match api::create_quiz().await {
             Ok(quiz) => ui::go(&format!("#/edit/{}", quiz.id)),

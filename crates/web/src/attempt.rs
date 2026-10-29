@@ -259,7 +259,7 @@ fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
     }
 }
 
-session: Session, q: AttemptQuestionView, position: usize, one: bool) -> impl IntoView {
+fn question_card(session: Session, q: AttemptQuestionView, position: usize, one: bool) -> impl IntoView {
     let qid = StoredValue::new(q.id.clone());
     let kind = q.kind;
     let input_type = if kind == QuestionKind::Single { "radio" } else { "checkbox" };
