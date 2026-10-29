@@ -282,6 +282,9 @@ h2 + .question { border-top: 0; padding-top: 4px; }
   padding: 14px 0; margin-top: 8px; background: var(--bg); border-top: var(--rule) solid var(--ink);
 }
 
+.form-status { margin: 12px 0 0; font-weight: 600; }
+.form-status.error { color: var(--bad); }
+.save-bar .form-status { flex-basis: 100%; margin: 0; }
 .format { background: var(--field-bg); color: var(--field-ink); border: 1.5px solid var(--ink); padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 13px; }
 
 .icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2;
