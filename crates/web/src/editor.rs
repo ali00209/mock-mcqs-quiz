@@ -15,7 +15,9 @@ use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::input::{Input, InputType};
 use crate::kit::ui::select_native::SelectNative;
 use crate::kit::ui::textarea::Textarea;
-use crate::ui::{self, Ui};
+use crate::ui::{self, LeaveGuard, Ui};
+use std::rc::Rc;
+use wasm_bindgen::{JsCast, closure::Closure};
 
 fn feedback_value(feedback: AnswerFeedback) -> &'static str {
     match feedback {
@@ -106,6 +108,13 @@ fn parse_percent(text: &str) -> Option<u8> {
     Some(text.parse::<u8>().unwrap_or(0))
 }
 
+/// What to do once a quiz has been saved.
+enum AfterSave {
+    Library,
+    Start,
+    Go(String),
+}
+
 #[component]
 fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     let draft = RwSignal::new(quiz.clone());
@@ -139,8 +148,8 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     let baseline = StoredValue::new(build());
     let is_dirty = move || build() != baseline.get_value();
 
-    // Validates and saves the quiz. Optionally starts an attempt from it afterwards.
-    let commit = move |start_after: bool| {
+    // Validates and saves the quiz, then does what `after` says.
+    let commit = move |after: AfterSave| {
         if saving.get_untracked() {
             return;
         }
@@ -159,14 +168,19 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 Ok(_) => {
                     baseline.set_value(next);
                     ui.drafts.update(|d| d.retain(|draft| draft != &id));
-                    if start_after {
-                        match api::start_attempt(&id, ui::new_seed()).await {
+                    match after {
+                        AfterSave::Start => match api::start_attempt(&id, ui::new_seed()).await {
                             Ok(attempt) => ui::go(&format!("#/attempt/{}", attempt.id)),
                             Err(error) => ui.notify(error, true),
+                        },
+                        AfterSave::Library => {
+                            ui.notify("Quiz saved.", false);
+                            ui::go("#/");
                         }
-                    } else {
-                        ui.notify("Quiz saved.", false);
-                        ui::go("#/");
+                        AfterSave::Go(destination) => {
+                            ui.notify("Quiz saved.", false);
+                            ui::go(&destination);
+                        }
                     }
                 }
                 Err(error) => ui.notify(error, true),
@@ -174,44 +188,92 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             saving.set(false);
         });
     };
-    let save = move || commit(false);
+    let save = move || commit(AfterSave::Library);
     // Saves first, so Start works in one click even with unsaved changes.
-    let start = move || commit(true);
+    let start = move || commit(AfterSave::Start);
 
-    // Leaving a quiz that was made here and never saved deletes it, so exit
-    // doesn't leave an empty quiz in the library.
-    let exit = move || {
+    // Leaves the editor for `destination`. A quiz made here and never saved is deleted first.
+    let leave = move |destination: String| {
         let id = draft.with_untracked(|q| q.id.clone());
         let is_draft = ui.drafts.with_untracked(|d| d.contains(&id));
-        let discard = move || {
-            if !is_draft {
-                ui::go("#/");
-                return;
-            }
-            let id = id.clone();
-            spawn_local(async move {
-                match api::delete_quiz(&id).await {
-                    Ok(()) => {
-                        ui.drafts.update(|d| d.retain(|draft| draft != &id));
-                        ui.reload();
-                        ui::go("#/");
-                    }
-                    Err(error) => ui.notify(error, true),
+        if !is_draft {
+            ui::go_unguarded(&destination);
+            return;
+        }
+        spawn_local(async move {
+            match api::delete_quiz(&id).await {
+                Ok(()) => {
+                    ui.drafts.update(|d| d.retain(|draft| draft != &id));
+                    ui.reload();
+                    ui::go_unguarded(&destination);
                 }
-            });
-        };
+                Err(error) => ui.notify(error, true),
+            }
+        });
+    };
+
+    let exit = move || {
         if is_dirty() {
             ui.ask(
                 "Leave without saving",
                 "Leave without saving? Your changes will be lost.",
                 "Leave",
                 true,
-                discard,
+                move || leave("#/".to_string()),
             );
         } else {
-            discard();
+            leave("#/".to_string());
         }
     };
+
+    // Leaving with the back button, a link or a typed address asks first:
+    // save, leave without saving, or stay.
+    let guard: LeaveGuard = Rc::new(move |target: String| {
+        let id = draft.with_untracked(|q| q.id.clone());
+        if target == format!("/edit/{id}") {
+            return false;
+        }
+        let is_draft = ui.drafts.with_untracked(|d| d.contains(&id));
+        if !is_dirty() && !is_draft {
+            return false;
+        }
+        let destination = if target.is_empty() { "#/".to_string() } else { format!("#{target}") };
+        let stay = format!("#/edit/{id}");
+        let message = if is_dirty() {
+            "You have unsaved changes. Save them before you leave?"
+        } else {
+            "This quiz hasn't been saved yet. Save it before you leave?"
+        };
+        let (save_to, leave_to) = (destination.clone(), destination);
+        ui.ask_three(
+            "Save this quiz?",
+            message,
+            "Save and leave",
+            move || commit(AfterSave::Go(save_to)),
+            "Leave without saving",
+            move || leave(leave_to),
+            move || ui::replace_hash(&stay),
+        );
+        true
+    });
+    ui.leave_guard.set(Some(guard));
+    on_cleanup(move || ui.leave_guard.set(None));
+
+    // Reloading or closing the tab asks the browser to confirm while work is unsaved.
+    let unload = Closure::<dyn FnMut(web_sys::BeforeUnloadEvent)>::new(move |event: web_sys::BeforeUnloadEvent| {
+        let id = draft.with_untracked(|q| q.id.clone());
+        let is_draft = ui.drafts.with_untracked(|d| d.contains(&id));
+        if is_dirty() || is_draft {
+            event.prevent_default();
+            event.set_return_value("");
+        }
+    });
+    ui::win().set_onbeforeunload(Some(unload.as_ref().unchecked_ref()));
+    let unload = StoredValue::new_local(unload);
+    on_cleanup(move || {
+        ui::win().set_onbeforeunload(None);
+        drop(unload);
+    });
 
     view! {
         <div class="page-head">
