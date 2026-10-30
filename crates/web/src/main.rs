@@ -56,8 +56,19 @@ fn App() -> impl IntoView {
     let ui = Ui::new(toaster);
     let page = RwSignal::new(current_page());
 
-    let on_hash = wasm_bindgen::closure::Closure::wrap(Box::new(move || page.set(current_page()))
-        as Box<dyn FnMut()>);
+    let on_hash = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+        if ui::take_bypass() {
+            page.set(current_page());
+            return;
+        }
+        // A page with unsaved work can hold the navigation and ask first.
+        if let Some(guard) = ui.leave_guard.get_untracked() {
+            if guard(ui::hash()) {
+                return;
+            }
+        }
+        page.set(current_page());
+    }) as Box<dyn FnMut()>);
     let _ = ui::win().add_event_listener_with_callback("hashchange", wasm_bindgen::JsCast::unchecked_ref(on_hash.as_ref()));
     on_hash.forget();
 
@@ -80,11 +91,10 @@ fn App() -> impl IntoView {
     view! {
         <ui::ConfirmDialog ui=ui/>
         <Toaster/>
-        // Decorative repeats of the top links for wide screens; hidden from assistive tech.
-        <nav class="side-tabs" aria-hidden="true">
-            <a href="#/" tabindex="-1" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
-            <a href="#/history" tabindex="-1" aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
-            <a href="#/data" tabindex="-1" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
+        <nav class="page-tabs" aria-label="Pages">
+            <a href="#/" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
+            <a href="#/history" aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
+            <a href="#/data" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
         </nav>
         <main class="container">
             {move || match page.get() {

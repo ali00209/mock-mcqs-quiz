@@ -33,6 +33,8 @@ web-sys = { version = "0.3", features = [
     "Node",
     "Url",
     "Window",
+    "History",
+    "BeforeUnloadEvent",
     "Worker",
     "Storage",
     "Navigator",

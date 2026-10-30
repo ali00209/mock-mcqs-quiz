@@ -76,24 +76,22 @@ a { color: var(--accent); }
   letter-spacing: 0.01em; text-transform: uppercase; color: #ffffff; text-decoration: none;
 }
 
-/* ---- Side tabs (wide screens only; decorative repeats of the top links) ---- */
-.side-tabs {
-  position: fixed; right: 0; top: 112px; z-index: 4;
-  display: flex; flex-direction: column; gap: 6px;
+/* ---- Page tabs: along the top of every page, dark in both modes ---- */
+.page-tabs {
+  max-width: 960px; margin: 0 auto; padding: 16px 16px 0;
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px;
 }
-.side-tabs a {
-  writing-mode: vertical-rl; text-decoration: none; text-transform: uppercase;
+.page-tabs a {
+  display: inline-flex; align-items: center; text-decoration: none; text-transform: uppercase;
   font-family: var(--display); font-stretch: 112%; font-weight: 800; font-size: 13px;
   letter-spacing: 0.14em; color: #ffffff; background: #15171c;
-  padding: 18px 12px; min-height: 44px; text-align: left;
+  padding: 12px 18px; min-height: 44px;
 }
 /* Fixed colours: the tabs are dark in both modes, so white text always reads. */
-.side-tabs a[aria-current="page"] { background: #1f4aa0; }
-.side-tabs a:hover { background: #163a85; }
-@media (max-width: 719px) { .side-tabs { display: none; } }
+.page-tabs a[aria-current="page"] { background: #1f4aa0; }
+.page-tabs a:hover { background: #163a85; }
 
 .container { max-width: 960px; margin: 0 auto; padding: 28px 16px 72px; }
-@media (min-width: 720px) { .container { padding-right: 72px; } }
 
 /* ---- Type ---- */
 h1 {

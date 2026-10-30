@@ -2,6 +2,8 @@
 use js_sys::{Array, Date, Function, Promise};
 use leptos::prelude::*;
 use leptos::prelude::LocalStorage;
+use std::cell::Cell;
+use std::rc::Rc;
 use crate::kit::ui::button::{Button, ButtonVariant};
 use mocktest_domain::AttemptStatus;
 use wasm_bindgen::{JsCast, prelude::*};
@@ -20,17 +22,37 @@ pub struct Ui {
     pub drafts: RwSignal<Vec<String>>,
     /// Bumped to make the library reload its data.
     pub version: RwSignal<u32>,
-    /// The yes/no question currently shown in the app's dialog, if any.
+    /// The question currently shown in the app's dialog, if any.
     pub confirm: RwSignal<Option<Confirm>, LocalStorage>,
+    /// Asked before leaving a page with unsaved work.
+    pub leave_guard: RwSignal<Option<LeaveGuard>, LocalStorage>,
 }
 
-/// A yes/no question. `on_yes` runs only when the person confirms.
+/// A question shown in the app's dialog, with up to three answers.
 pub struct Confirm {
     title: String,
     message: String,
     action: String,
     destructive: bool,
     on_yes: Box<dyn FnOnce()>,
+    cancel_label: String,
+    on_cancel: Option<Box<dyn FnOnce()>>,
+    alternate: Option<(String, Box<dyn FnOnce()>)>,
+}
+
+#[derive(Clone, Copy)]
+enum Pick {
+    Primary,
+    Alternate,
+    Cancel,
+}
+
+/// Called before the app leaves a page with unsaved work. It returns true when
+/// it has asked the person what to do, which holds the navigation.
+pub type LeaveGuard = Rc<dyn Fn(String) -> bool>;
+
+thread_local! {
+    static BYPASS_GUARD: Cell<bool> = const { Cell::new(false) };
 }
 
 impl Ui {
@@ -40,6 +62,7 @@ impl Ui {
             drafts: RwSignal::new(Vec::new()),
             version: RwSignal::new(0),
             confirm: RwSignal::new_local(None),
+            leave_guard: RwSignal::new_local(None),
         }
     }
 
@@ -79,6 +102,33 @@ impl Ui {
             action: action.to_string(),
             destructive,
             on_yes: Box::new(on_yes),
+            cancel_label: "Cancel".to_string(),
+            on_cancel: None,
+            alternate: None,
+        }));
+    }
+
+    /// Asks a question with three answers: `primary` and `alternate` do something,
+    /// and Stay runs `on_cancel`, which can restore the page.
+    pub fn ask_three(
+        self,
+        title: &str,
+        message: &str,
+        primary: &str,
+        on_primary: impl FnOnce() + 'static,
+        alternate: &str,
+        on_alternate: impl FnOnce() + 'static,
+        on_cancel: impl FnOnce() + 'static,
+    ) {
+        self.confirm.set(Some(Confirm {
+            title: title.to_string(),
+            message: message.to_string(),
+            action: primary.to_string(),
+            destructive: false,
+            on_yes: Box::new(on_primary),
+            cancel_label: "Stay".to_string(),
+            on_cancel: Some(Box::new(on_cancel)),
+            alternate: Some((alternate.to_string(), Box::new(on_alternate))),
         }));
     }
 }
@@ -90,12 +140,27 @@ pub fn ConfirmDialog(ui: Ui) -> impl IntoView {
     let title = move || ui.confirm.with(|c| c.as_ref().map(|c| c.title.clone()).unwrap_or_default());
     let message = move || ui.confirm.with(|c| c.as_ref().map(|c| c.message.clone()).unwrap_or_default());
     let action = move || ui.confirm.with(|c| c.as_ref().map(|c| c.action.clone()).unwrap_or_default());
+    let cancel_label = move || ui.confirm.with(|c| c.as_ref().map(|c| c.cancel_label.clone()).unwrap_or_default());
+    let alternate_label = move || {
+        ui.confirm.with(|c| c.as_ref().and_then(|c| c.alternate.as_ref().map(|(label, _)| label.clone())))
+    };
     let destructive = move || ui.confirm.with(|c| c.as_ref().is_some_and(|c| c.destructive));
 
-    let answer = move |yes: bool| {
-        if let Some(pending) = ui.confirm.try_update(|c| c.take()).flatten() {
-            if yes {
-                (pending.on_yes)();
+    let choose = move |pick: Pick| {
+        let Some(pending) = ui.confirm.try_update(|c| c.take()).flatten() else {
+            return;
+        };
+        match pick {
+            Pick::Primary => (pending.on_yes)(),
+            Pick::Alternate => {
+                if let Some((_, run)) = pending.alternate {
+                    run();
+                }
+            }
+            Pick::Cancel => {
+                if let Some(run) = pending.on_cancel {
+                    run();
+                }
             }
         }
     };
@@ -115,7 +180,7 @@ pub fn ConfirmDialog(ui: Ui) -> impl IntoView {
 
     view! {
         <Show when=is_open>
-            <div class="fixed inset-0 z-[60] bg-black/50" aria-hidden="true" on:click=move |_| answer(false)></div>
+            <div class="fixed inset-0 z-[60] bg-black/50" aria-hidden="true" on:click=move |_| choose(Pick::Cancel)></div>
             <div
                 role="alertdialog"
                 aria-modal="true"
@@ -124,19 +189,26 @@ pub fn ConfirmDialog(ui: Ui) -> impl IntoView {
                 class="fixed top-1/2 left-1/2 z-[70] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-md border bg-card p-6 text-card-foreground shadow-lg"
                 on:keydown=move |ev: leptos::ev::KeyboardEvent| {
                     if ev.key() == "Escape" {
-                        answer(false);
+                        choose(Pick::Cancel);
                     }
                 }
             >
                 <h2 id="confirm-title" class="text-lg leading-none font-semibold">{title}</h2>
                 <p id="confirm-message" class="text-sm text-muted-foreground">{message}</p>
                 <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <Button variant=ButtonVariant::Outline attr:id="confirm-cancel" on:click=move |_| answer(false)>
-                        "Cancel"
+                    <Button variant=ButtonVariant::Outline attr:id="confirm-cancel" on:click=move |_| choose(Pick::Cancel)>
+                        {cancel_label}
                     </Button>
                     {move || {
+                        alternate_label().map(|label| {
+                            view! {
+                                <Button variant=ButtonVariant::Outline on:click=move |_| choose(Pick::Alternate)>{label}</Button>
+                            }
+                        })
+                    }}
+                    {move || {
                         let variant = if destructive() { ButtonVariant::Destructive } else { ButtonVariant::Default };
-                        view! { <Button variant=variant on:click=move |_| answer(true)>{action()}</Button> }
+                        view! { <Button variant=variant on:click=move |_| choose(Pick::Primary)>{action()}</Button> }
                     }}
                 </div>
             </div>
@@ -155,6 +227,26 @@ pub fn hash() -> String {
 
 pub fn go(hash: &str) {
     let _ = win().location().set_hash(hash);
+}
+
+/// Navigates without asking the leave guard. Used once the person has chosen to leave.
+pub fn go_unguarded(target: &str) {
+    if self::hash() != target.trim_start_matches('#') {
+        BYPASS_GUARD.with(|b| b.set(true));
+        go(target);
+    }
+}
+
+/// True once after `go_unguarded`, so the page change goes ahead without a question.
+pub fn take_bypass() -> bool {
+    BYPASS_GUARD.with(|b| b.replace(false))
+}
+
+/// Changes the address without a navigation event, to undo a navigation.
+pub fn replace_hash(target: &str) {
+    if let Ok(history) = win().history() {
+        let _ = history.replace_state_with_url(&JsValue::NULL, "", Some(target));
+    }
 }
 
 pub fn now_ms() -> i64 {

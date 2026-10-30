@@ -387,7 +387,10 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
     // Shown once the question has an answer, when the quiz marks answers as they go.
     let feedback = move || {
         let mut chosen = session.answer(&qid.get_value()).selected;
-        if !show_feedback || chosen.is_empty() {
+        // Judge only once every correct option has been picked, so a partly
+        // answered multiple-answer question shows nothing yet.
+        let needed = correct_key.with_value(|ids| ids.len());
+        if !show_feedback || chosen.len() < needed {
             return None;
         }
         chosen.sort();
