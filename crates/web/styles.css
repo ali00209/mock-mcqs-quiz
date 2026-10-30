@@ -129,7 +129,7 @@ p { margin: 0 0 10px; }
 /* ---- Buttons ---- */
 /* ---- Buttons ----
    Buttons are the kit's Button component (kit/ui/button.rs). These rules are for the raw
-   buttons that remain: question-nav chips, the option remove button and menu items. */
+   buttons that remain: question-nav chips, the option remove button. */
 .qbtn, .icon-button {
   border: var(--rule) solid var(--ink); cursor: pointer; color: var(--field-ink);
 }
@@ -221,30 +221,6 @@ h2 + .question { border-top: 0; padding-top: 4px; }
 .review-options li .icon { margin-right: 6px; }
 .explanation { background: var(--surface); border-left: 0; border-radius: var(--radius); padding: 12px 14px; border: 1.5px solid var(--ink); }
 
-/* ---- Menus ---- */
-.menu { position: relative; }
-.menu > summary { list-style: none; }
-.menu > summary::-webkit-details-marker { display: none; }
-.more-toggle {
-  display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; cursor: pointer;
-  background: var(--surface); color: var(--ink); border: var(--rule) solid var(--ink); border-radius: var(--radius);
-  font-family: var(--display); font-stretch: 112%; font-weight: 700; font-size: 13px;
-  text-transform: uppercase; letter-spacing: 0.06em;
-}
-.more-toggle:hover { background: var(--ink); color: var(--surface); }
-.menu-items {
-  position: absolute; right: 0; top: calc(100% + 6px); z-index: 4; min-width: 190px;
-  display: flex; flex-direction: column; padding: 4px; background: var(--surface);
-  border: var(--rule) solid var(--ink); border-radius: var(--radius); box-shadow: var(--shadow);
-}
-.menu-item {
-  text-align: left; border: 0; background: none; padding: 10px 12px; border-radius: var(--radius);
-  text-decoration: none; color: var(--ink); text-transform: none; font-family: inherit;
-  font-stretch: 100%; font-weight: 500; font-size: 15px; letter-spacing: 0;
-  display: flex; align-items: center; justify-content: flex-start; min-height: 44px;
-}
-.menu-item:hover { background: var(--accent-tint); color: var(--ink); }
-.menu-item.danger { color: var(--bad); }
 
 /* ---- Misc ---- */
 .empty { text-align: center; padding: 40px 18px; border-top: 0; }

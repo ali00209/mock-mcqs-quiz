@@ -1,34 +1,146 @@
 // Shared UI state and browser helpers.
 use js_sys::{Array, Date, Function, Promise};
 use leptos::prelude::*;
+use leptos::prelude::LocalStorage;
+use crate::kit::ui::button::{Button, ButtonVariant};
 use mocktest_domain::AttemptStatus;
 use wasm_bindgen::{JsCast, prelude::*};
+use crate::kit::ui::toast_custom::_builder::ToastBuilder;
+use crate::kit::ui::toast_custom::_context::ToasterContext;
+use crate::kit::ui::toast_custom::_data::{ToastLevel, ToastPosition};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Blob, BlobPropertyBag, Event, HtmlAnchorElement, HtmlInputElement, Url};
 
 /// Signals every page can use. Copy, so it can be passed into any handler.
 #[derive(Clone, Copy)]
 pub struct Ui {
-    /// Banner message: (text, is_error).
-    pub notice: RwSignal<Option<(String, bool)>>,
+    /// Shows toast messages. Provided once at the app root.
+    pub toaster: StoredValue<ToasterContext>,
+    /// Ids of quizzes made in the editor that have not been saved yet.
+    pub drafts: RwSignal<Vec<String>>,
     /// Bumped to make the library reload its data.
     pub version: RwSignal<u32>,
+    /// The yes/no question currently shown in the app's dialog, if any.
+    pub confirm: RwSignal<Option<Confirm>, LocalStorage>,
+}
+
+/// A yes/no question. `on_yes` runs only when the person confirms.
+pub struct Confirm {
+    title: String,
+    message: String,
+    action: String,
+    destructive: bool,
+    on_yes: Box<dyn FnOnce()>,
 }
 
 impl Ui {
-    pub fn new() -> Self {
+    pub fn new(toaster: ToasterContext) -> Self {
         Self {
-            notice: RwSignal::new(None),
+            toaster: StoredValue::new(toaster),
+            drafts: RwSignal::new(Vec::new()),
             version: RwSignal::new(0),
+            confirm: RwSignal::new_local(None),
         }
     }
 
+    /// Shows a toast: an error when `error` is true, otherwise a success message.
     pub fn notify(self, message: impl Into<String>, error: bool) {
-        self.notice.set(Some((message.into(), error)));
+        let level = if error { ToastLevel::Error } else { ToastLevel::Success };
+        self.toast(message.into(), level);
+    }
+
+    /// Shows an information toast.
+    pub fn info(self, message: impl Into<String>) {
+        self.toast(message.into(), ToastLevel::Info);
+    }
+
+    fn toast(self, message: String, level: ToastLevel) {
+        self.toaster.with_value(|toaster| {
+            toaster.toast(ToastBuilder::new(message).with_level(level).with_position(ToastPosition::BottomRight));
+        });
     }
 
     pub fn reload(self) {
         self.version.update(|v| *v += 1);
+    }
+
+    /// Asks a yes/no question in the app's dialog. `on_yes` runs only if confirmed.
+    pub fn ask(
+        self,
+        title: &str,
+        message: &str,
+        action: &str,
+        destructive: bool,
+        on_yes: impl FnOnce() + 'static,
+    ) {
+        self.confirm.set(Some(Confirm {
+            title: title.to_string(),
+            message: message.to_string(),
+            action: action.to_string(),
+            destructive,
+            on_yes: Box::new(on_yes),
+        }));
+    }
+}
+
+/// The app's confirm dialog. Rendered once, at the root of the app.
+#[component]
+pub fn ConfirmDialog(ui: Ui) -> impl IntoView {
+    let is_open = move || ui.confirm.with(|c| c.is_some());
+    let title = move || ui.confirm.with(|c| c.as_ref().map(|c| c.title.clone()).unwrap_or_default());
+    let message = move || ui.confirm.with(|c| c.as_ref().map(|c| c.message.clone()).unwrap_or_default());
+    let action = move || ui.confirm.with(|c| c.as_ref().map(|c| c.action.clone()).unwrap_or_default());
+    let destructive = move || ui.confirm.with(|c| c.as_ref().is_some_and(|c| c.destructive));
+
+    let answer = move |yes: bool| {
+        if let Some(pending) = ui.confirm.try_update(|c| c.take()).flatten() {
+            if yes {
+                (pending.on_yes)();
+            }
+        }
+    };
+
+    // Focus the safe choice (Cancel) when the dialog opens.
+    Effect::new(move |_| {
+        if is_open() {
+            let cancel = win()
+                .document()
+                .and_then(|d| d.get_element_by_id("confirm-cancel"))
+                .and_then(|el| el.dyn_into::<web_sys::HtmlElement>().ok());
+            if let Some(cancel) = cancel {
+                let _ = cancel.focus();
+            }
+        }
+    });
+
+    view! {
+        <Show when=is_open>
+            <div class="fixed inset-0 z-[60] bg-black/50" aria-hidden="true" on:click=move |_| answer(false)></div>
+            <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="confirm-title"
+                aria-describedby="confirm-message"
+                class="fixed top-1/2 left-1/2 z-[70] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-md border bg-card p-6 text-card-foreground shadow-lg"
+                on:keydown=move |ev: leptos::ev::KeyboardEvent| {
+                    if ev.key() == "Escape" {
+                        answer(false);
+                    }
+                }
+            >
+                <h2 id="confirm-title" class="text-lg leading-none font-semibold">{title}</h2>
+                <p id="confirm-message" class="text-sm text-muted-foreground">{message}</p>
+                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button variant=ButtonVariant::Outline attr:id="confirm-cancel" on:click=move |_| answer(false)>
+                        "Cancel"
+                    </Button>
+                    {move || {
+                        let variant = if destructive() { ButtonVariant::Destructive } else { ButtonVariant::Default };
+                        view! { <Button variant=variant on:click=move |_| answer(true)>{action()}</Button> }
+                    }}
+                </div>
+            </div>
+        </Show>
     }
 }
 
@@ -43,10 +155,6 @@ pub fn hash() -> String {
 
 pub fn go(hash: &str) {
     let _ = win().location().set_hash(hash);
-}
-
-pub fn confirm(message: &str) -> bool {
-    win().confirm_with_message(message).unwrap_or(false)
 }
 
 pub fn now_ms() -> i64 {

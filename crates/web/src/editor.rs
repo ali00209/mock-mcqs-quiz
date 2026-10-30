@@ -73,14 +73,17 @@ pub fn Editor(ui: Ui, id: String) -> impl IntoView {
             }
             .into_any()
         }
-        Some(Ok(quiz)) => view! { <EditForm quiz=quiz/> }.into_any(),
+        Some(Ok(quiz)) => view! { <EditForm ui=ui quiz=quiz/> }.into_any(),
     }
 }
 
 fn copy_for_editing(ui: Ui, id: String) {
     spawn_local(async move {
         match api::duplicate_quiz(&id).await {
-            Ok(copy) => ui::go(&format!("#/edit/{}", copy.id)),
+            Ok(copy) => {
+                ui.drafts.update(|d| d.push(copy.id.clone()));
+                ui::go(&format!("#/edit/{}", copy.id));
+            }
             Err(error) => ui.notify(error, true),
         }
     });
@@ -104,7 +107,7 @@ fn parse_percent(text: &str) -> Option<u8> {
 }
 
 #[component]
-fn EditForm(quiz: Quiz) -> impl IntoView {
+fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     let draft = RwSignal::new(quiz.clone());
     let title = synced(draft, quiz.title.clone(), |q, v| q.title = v.to_string());
     let description = synced(draft, quiz.description.clone(), |q, v| q.description = v.to_string());
@@ -124,9 +127,6 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
     let pass_text = RwSignal::new(quiz.settings.pass_percent.map(|p| p.to_string()).unwrap_or_default());
     let issues = RwSignal::new(Vec::<String>::new());
     let saving = RwSignal::new(false);
-    // Save outcome, shown beside the buttons: (message, is_error).
-    let status = RwSignal::new(None::<(String, bool)>);
-
     // The quiz as the form would save it right now.
     let build = move || {
         let mut next = draft.get_untracked();
@@ -139,7 +139,8 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
     let baseline = StoredValue::new(build());
     let is_dirty = move || build() != baseline.get_value();
 
-    let save = move || {
+    // Validates and saves the quiz. Optionally starts an attempt from it afterwards.
+    let commit = move |start_after: bool| {
         if saving.get_untracked() {
             return;
         }
@@ -152,44 +153,64 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
             return;
         }
         saving.set(true);
-        status.set(None);
+        let id = next.id.clone();
         spawn_local(async move {
             match api::save_quiz(next.clone()).await {
                 Ok(_) => {
-                    // Saved: back to the library.
                     baseline.set_value(next);
-                    ui::go("#/");
+                    ui.drafts.update(|d| d.retain(|draft| draft != &id));
+                    if start_after {
+                        match api::start_attempt(&id, ui::new_seed()).await {
+                            Ok(attempt) => ui::go(&format!("#/attempt/{}", attempt.id)),
+                            Err(error) => ui.notify(error, true),
+                        }
+                    } else {
+                        ui.notify("Quiz saved.", false);
+                        ui::go("#/");
+                    }
                 }
-                Err(error) => status.set(Some((error, true))),
+                Err(error) => ui.notify(error, true),
             }
             saving.set(false);
         });
     };
+    let save = move || commit(false);
+    // Saves first, so Start works in one click even with unsaved changes.
+    let start = move || commit(true);
 
-    // Starts an attempt from the saved version of the quiz.
-    let start = move || {
-        if saving.get_untracked() {
-            return;
-        }
-        if is_dirty() {
-            status.set(Some(("Save your changes before starting the quiz.".to_string(), true)));
-            return;
-        }
-        let quiz_id = draft.with_untracked(|q| q.id.clone());
-        status.set(None);
-        spawn_local(async move {
-            match api::start_attempt(&quiz_id, ui::new_seed()).await {
-                Ok(attempt) => ui::go(&format!("#/attempt/{}", attempt.id)),
-                Err(error) => status.set(Some((error, true))),
-            }
-        });
-    };
-
+    // Leaving a quiz that was made here and never saved deletes it, so exit
+    // doesn't leave an empty quiz in the library.
     let exit = move || {
-        if is_dirty() && !ui::confirm("Leave without saving? Your changes will be lost.") {
-            return;
+        let id = draft.with_untracked(|q| q.id.clone());
+        let is_draft = ui.drafts.with_untracked(|d| d.contains(&id));
+        let discard = move || {
+            if !is_draft {
+                ui::go("#/");
+                return;
+            }
+            let id = id.clone();
+            spawn_local(async move {
+                match api::delete_quiz(&id).await {
+                    Ok(()) => {
+                        ui.drafts.update(|d| d.retain(|draft| draft != &id));
+                        ui.reload();
+                        ui::go("#/");
+                    }
+                    Err(error) => ui.notify(error, true),
+                }
+            });
+        };
+        if is_dirty() {
+            ui.ask(
+                "Leave without saving",
+                "Leave without saving? Your changes will be lost.",
+                "Leave",
+                true,
+                discard,
+            );
+        } else {
+            discard();
         }
-        ui::go("#/");
     };
 
     view! {
@@ -258,7 +279,7 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
             </label>
         </section>
 
-        {text_import(draft)}
+        {text_import(ui, draft)}
 
         <section class="panel">
             <h2>"Questions"</h2>
@@ -292,12 +313,6 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
         }}
 
         <div class="save-bar">
-            {move || {
-                status.get().map(|(message, error)| {
-                    let (class, role) = if error { ("form-status error", "alert") } else { ("form-status", "status") };
-                    view! { <p class={class} role={role}>{message}</p> }
-                })
-            }}
             <Button variant=ButtonVariant::Outline attr:disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</Button>
             <Button variant=ButtonVariant::Outline on:click=move |_| exit()>"Exit without saving"</Button>
             <Button variant=ButtonVariant::Default attr:disabled=move || saving.get() on:click=move |_| save()>
@@ -539,11 +554,9 @@ b) Green
 c) Blue *
 d) Yellow";
 
-fn text_import(draft: RwSignal<Quiz>) -> impl IntoView {
+fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
     let text = RwSignal::new(String::new());
     let preview = RwSignal::new(None::<Result<Vec<Question>, Vec<String>>>);
-    // Outcome of the last import, shown inside this panel: (message, is_error).
-    let note = RwSignal::new(None::<(String, bool)>);
 
     // `replace` swaps out the existing questions; otherwise the new ones go on the end.
     let apply = move |replace: bool| {
@@ -553,26 +566,31 @@ fn text_import(draft: RwSignal<Quiz>) -> impl IntoView {
         let count = questions.len();
         let current = draft.with_untracked(|q| q.questions.len());
         if !replace && current + count > MAX_QUESTIONS {
-            note.set(Some((format!("A quiz can have at most {MAX_QUESTIONS} questions."), true)));
+            ui.notify(format!("A quiz can have at most {MAX_QUESTIONS} questions."), true);
             return;
         }
-        if replace
-            && current > 0
-            && !ui::confirm(&format!(
-                "Replace the {current} existing question(s) with the {count} pasted? This cannot be undone."
-            ))
-        {
-            return;
+        let finish = move || {
+            draft.update(|q| {
+                if replace {
+                    q.questions = questions;
+                } else {
+                    q.questions.extend(questions);
+                }
+            });
+            preview.set(None);
+            ui.info(format!("Added {count} question(s). Check them below, then Save."));
+        };
+        if replace && current > 0 {
+            ui.ask(
+                "Replace questions",
+                &format!("Replace the {current} existing question(s) with the {count} pasted? This cannot be undone."),
+                "Replace",
+                true,
+                finish,
+            );
+        } else {
+            finish();
         }
-        draft.update(|q| {
-            if replace {
-                q.questions = questions;
-            } else {
-                q.questions.extend(questions);
-            }
-        });
-        preview.set(None);
-        note.set(Some((format!("Added {count} question(s). Check them below, then Save."), false)));
     };
 
     view! {
@@ -594,12 +612,6 @@ fn text_import(draft: RwSignal<Quiz>) -> impl IntoView {
                     "Check text"
                 </Button>
             </div>
-            {move || {
-                note.get().map(|(message, error)| {
-                    let (class, role) = if error { ("form-status error", "alert") } else { ("form-status", "status") };
-                    view! { <p class={class} role={role}>{message}</p> }
-                })
-            }}
             {move || {
                 preview.get().map(|result| match result {
                     Err(errors) => view! {
