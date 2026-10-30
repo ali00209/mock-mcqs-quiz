@@ -34,8 +34,7 @@ variants! {
         },
         component: {
             element: button,
-            support_href: true,
-            support_aria_current: true
+            support_href: true
         }
     }
 }
