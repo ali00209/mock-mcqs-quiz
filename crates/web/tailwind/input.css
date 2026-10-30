@@ -64,7 +64,7 @@
   --ok: #1f7a4a;
   --bad: #b3261e;
   --warn: #8a5a0b;
-  /* Fields, choices and chips stay light in both modes, so their ink stays dark. */
+  /* Fields, choices and chips: light here, dark in dark mode (below). */
   --field-bg: #ffffff;
   --field-ink: #15171c;
   --tint: #d6e0f5;
@@ -90,6 +90,9 @@
     --ok: #4cc27c;
     --bad: #ef6b6b;
     --warn: #e0a84f;
+    --field-bg: #1b2437;
+    --field-ink: #eef1f8;
+    --tint: #1f2c4d;
     --shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
     color-scheme: dark;
   }
