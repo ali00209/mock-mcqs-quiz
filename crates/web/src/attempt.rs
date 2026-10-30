@@ -87,7 +87,7 @@ impl Session {
 }
 
 #[component]
-pub fn Attempt(id: String) -> impl IntoView {
+pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
     let state = RwSignal::new(None::<Result<AttemptView, String>>);
     let answers = RwSignal::new(HashMap::<String, Answer>::new());
     let index = RwSignal::new(0usize);
@@ -182,28 +182,33 @@ pub fn Attempt(id: String) -> impl IntoView {
         } else {
             "Submit this attempt? You can't change your answers afterwards.".to_string()
         };
-        if !ui::confirm(&message) {
-            return;
-        }
-        spawn_local(async move {
-            match api::submit_attempt(&attempt_id).await {
-                Ok(_) => ui::go(&format!("#/review/{attempt_id}")),
-                Err(error) => problem.set(Some(error)),
-            }
+        let action = if unanswered > 0 { "Submit anyway" } else { "Submit" };
+        ui.ask("Submit attempt", &message, action, false, move || {
+            spawn_local(async move {
+                match api::submit_attempt(&attempt_id).await {
+                    Ok(_) => ui::go(&format!("#/review/{attempt_id}")),
+                    Err(error) => problem.set(Some(error)),
+                }
+            });
         });
     };
 
     let quit = move || {
-        if !ui::confirm("Quit this attempt? It will be discarded and can't be resumed.") {
-            return;
-        }
         let attempt_id = session.attempt_id.get_value();
-        spawn_local(async move {
-            match api::delete_attempt(&attempt_id).await {
-                Ok(()) => ui::go("#/"),
-                Err(error) => problem.set(Some(error)),
-            }
-        });
+        ui.ask(
+            "Quit attempt",
+            "Quit this attempt? It will be discarded and can't be resumed.",
+            "Quit",
+            true,
+            move || {
+                spawn_local(async move {
+                    match api::delete_attempt(&attempt_id).await {
+                        Ok(()) => ui::go("#/"),
+                        Err(error) => problem.set(Some(error)),
+                    }
+                });
+            },
+        );
     };
 
     move || match state.get() {

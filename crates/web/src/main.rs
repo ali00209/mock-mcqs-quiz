@@ -12,6 +12,7 @@ use mocktest_domain::{
 };
 use ui::Ui;
 use kit::ui::badge::{Badge, BadgeVariant};
+use kit::ui::dropdown_menu::{DropdownMenu, DropdownMenuAction, DropdownMenuActionVariant, DropdownMenuContent, DropdownMenuTrigger};
 use kit::ui::button::{Button, ButtonVariant};
 use kit::ui::card::Card;
 use kit::ui::table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableWrapper};
@@ -73,6 +74,7 @@ fn App() -> impl IntoView {
     });
 
     view! {
+        <ui::ConfirmDialog ui=ui/>
         // Decorative repeats of the top links for wide screens; hidden from assistive tech.
         <nav class="side-tabs" aria-hidden="true">
             <a href="#/" tabindex="-1" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
@@ -85,7 +87,7 @@ fn App() -> impl IntoView {
                 Page::History => view! { <History ui=ui/> }.into_any(),
                 Page::Data => view! { <Data ui=ui/> }.into_any(),
                 Page::Edit(id) => view! { <editor::Editor ui=ui id=id/> }.into_any(),
-                Page::Attempt(id) => view! { <attempt::Attempt id=id/> }.into_any(),
+                Page::Attempt(id) => view! { <attempt::Attempt ui=ui id=id/> }.into_any(),
                 Page::Review(id) => view! { <attempt::Review ui=ui id=id/> }.into_any(),
                 Page::NotFound => view! { <p class="muted">"Page not found."</p> }.into_any(),
             }}
@@ -196,22 +198,23 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
                     }
                     .into_any(),
                 }}
-                <details class="menu">
-                    <summary class="more-toggle">"More"</summary>
-                    <div class="menu-items">
-                        {(!is_sample).then(|| view! { <a class="menu-item" href={edit_href}>"Edit"</a> })}
-                        <button class="menu-item" on:click=move |_| duplicate(ui, dup_id.clone())>
-                            {if is_sample { "Duplicate to edit" } else { "Duplicate" }}
-                        </button>
-                        <button class="menu-item" on:click=move |_| export_quiz(ui, export_id.clone(), export_title.clone())>
-                            "Export"
-                        </button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger>"More"</DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        {(!is_sample).then(|| view! { <DropdownMenuAction href=edit_href.clone()>"Edit"</DropdownMenuAction> })}
+                        <div class="contents" on:click=move |_| duplicate(ui, dup_id.clone())>
+                            <DropdownMenuAction>{if is_sample { "Duplicate to edit" } else { "Duplicate" }}</DropdownMenuAction>
+                        </div>
+                        <div class="contents" on:click=move |_| export_quiz(ui, export_id.clone(), export_title.clone())>
+                            <DropdownMenuAction>"Export"</DropdownMenuAction>
+                        </div>
                         {(!is_sample).then(|| view! {
-                            <button class="menu-item danger"
-                                on:click=move |_| delete_quiz(ui, delete_id.clone(), delete_title.clone())>"Delete"</button>
+                            <div class="contents" on:click=move |_| delete_quiz(ui, delete_id.clone(), delete_title.clone())>
+                                <DropdownMenuAction variant=DropdownMenuActionVariant::Destructive>"Delete"</DropdownMenuAction>
+                            </div>
                         })}
-                    </div>
-                </details>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
           </Card>
         </article>
@@ -279,18 +282,23 @@ fn export_quiz(ui: Ui, id: String, title: String) {
 }
 
 fn delete_quiz(ui: Ui, id: String, title: String) {
-    if !ui::confirm(&format!("Delete “{title}”? Its past attempts stay in History.")) {
-        return;
-    }
-    spawn_local(async move {
-        match api::delete_quiz(&id).await {
-            Ok(()) => {
-                ui.notify("Quiz deleted.", false);
-                ui.reload();
-            }
-            Err(error) => ui.notify(error, true),
-        }
-    });
+    ui.ask(
+        "Delete quiz",
+        &format!("Delete “{title}”? Its past attempts stay in History."),
+        "Delete",
+        true,
+        move || {
+            spawn_local(async move {
+                match api::delete_quiz(&id).await {
+                    Ok(()) => {
+                        ui.notify("Quiz deleted.", false);
+                        ui.reload();
+                    }
+                    Err(error) => ui.notify(error, true),
+                }
+            });
+        },
+    );
 }
 
 // ---------- History ----------
@@ -335,18 +343,23 @@ fn History(ui: Ui) -> impl IntoView {
 }
 
 fn clear_history(ui: Ui) {
-    if !ui::confirm("Delete all attempts and their answers? Quizzes are kept. This cannot be undone.") {
-        return;
-    }
-    spawn_local(async move {
-        match api::clear_history().await {
-            Ok(()) => {
-                ui.notify("History was cleared.", false);
-                ui.reload();
-            }
-            Err(error) => ui.notify(error, true),
-        }
-    });
+    ui.ask(
+        "Clear history",
+        "Delete all attempts and their answers? Quizzes are kept. This cannot be undone.",
+        "Clear history",
+        true,
+        move || {
+            spawn_local(async move {
+                match api::clear_history().await {
+                    Ok(()) => {
+                        ui.notify("History was cleared.", false);
+                        ui.reload();
+                    }
+                    Err(error) => ui.notify(error, true),
+                }
+            });
+        },
+    );
 }
 
 fn history_row(a: AttemptSummary) -> impl IntoView {
@@ -453,32 +466,44 @@ fn restore(ui: Ui) {
             ui.notify("This is not a MockTest backup file.", true);
             return;
         }
-        if !ui::confirm("Restoring replaces all current quizzes and history. Continue?") {
-            return;
-        }
-        match api::restore(data).await {
-            Ok(result) => {
-                let quizzes = result["quizzes"].as_u64().unwrap_or(0);
-                let attempts = result["attempts"].as_u64().unwrap_or(0);
-                ui.notify(format!("Restored {quizzes} quiz(zes) and {attempts} attempt(s)."), false);
-                ui.reload();
-            }
-            Err(error) => ui.notify(error, true),
-        }
+        ui.ask(
+            "Restore backup",
+            "Restoring replaces all current quizzes and history. Continue?",
+            "Restore",
+            true,
+            move || {
+                spawn_local(async move {
+                    match api::restore(data).await {
+                        Ok(result) => {
+                            let quizzes = result["quizzes"].as_u64().unwrap_or(0);
+                            let attempts = result["attempts"].as_u64().unwrap_or(0);
+                            ui.notify(format!("Restored {quizzes} quiz(zes) and {attempts} attempt(s)."), false);
+                            ui.reload();
+                        }
+                        Err(error) => ui.notify(error, true),
+                    }
+                });
+            },
+        );
     });
 }
 
 fn reset(ui: Ui) {
-    if !ui::confirm("Delete all quizzes and history? This cannot be undone.") {
-        return;
-    }
-    spawn_local(async move {
-        match api::reset().await {
-            Ok(()) => {
-                ui.notify("Everything was reset.", false);
-                ui.reload();
-            }
-            Err(error) => ui.notify(error, true),
-        }
-    });
+    ui.ask(
+        "Reset everything",
+        "Delete all quizzes and history? This cannot be undone.",
+        "Reset everything",
+        true,
+        move || {
+            spawn_local(async move {
+                match api::reset().await {
+                    Ok(()) => {
+                        ui.notify("Everything was reset.", false);
+                        ui.reload();
+                    }
+                    Err(error) => ui.notify(error, true),
+                }
+            });
+        },
+    );
 }

@@ -73,7 +73,7 @@ pub fn Editor(ui: Ui, id: String) -> impl IntoView {
             }
             .into_any()
         }
-        Some(Ok(quiz)) => view! { <EditForm quiz=quiz/> }.into_any(),
+        Some(Ok(quiz)) => view! { <EditForm ui=ui quiz=quiz/> }.into_any(),
     }
 }
 
@@ -104,7 +104,7 @@ fn parse_percent(text: &str) -> Option<u8> {
 }
 
 #[component]
-fn EditForm(quiz: Quiz) -> impl IntoView {
+fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     let draft = RwSignal::new(quiz.clone());
     let title = synced(draft, quiz.title.clone(), |q, v| q.title = v.to_string());
     let description = synced(draft, quiz.description.clone(), |q, v| q.description = v.to_string());
@@ -186,10 +186,17 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
     };
 
     let exit = move || {
-        if is_dirty() && !ui::confirm("Leave without saving? Your changes will be lost.") {
-            return;
+        if is_dirty() {
+            ui.ask(
+                "Leave without saving",
+                "Leave without saving? Your changes will be lost.",
+                "Leave",
+                true,
+                || ui::go("#/"),
+            );
+        } else {
+            ui::go("#/");
         }
-        ui::go("#/");
     };
 
     view! {
@@ -258,7 +265,7 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
             </label>
         </section>
 
-        {text_import(draft)}
+        {text_import(ui, draft)}
 
         <section class="panel">
             <h2>"Questions"</h2>
@@ -539,7 +546,7 @@ b) Green
 c) Blue *
 d) Yellow";
 
-fn text_import(draft: RwSignal<Quiz>) -> impl IntoView {
+fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
     let text = RwSignal::new(String::new());
     let preview = RwSignal::new(None::<Result<Vec<Question>, Vec<String>>>);
     // Outcome of the last import, shown inside this panel: (message, is_error).
@@ -556,23 +563,28 @@ fn text_import(draft: RwSignal<Quiz>) -> impl IntoView {
             note.set(Some((format!("A quiz can have at most {MAX_QUESTIONS} questions."), true)));
             return;
         }
-        if replace
-            && current > 0
-            && !ui::confirm(&format!(
-                "Replace the {current} existing question(s) with the {count} pasted? This cannot be undone."
-            ))
-        {
-            return;
+        let finish = move || {
+            draft.update(|q| {
+                if replace {
+                    q.questions = questions;
+                } else {
+                    q.questions.extend(questions);
+                }
+            });
+            preview.set(None);
+            note.set(Some((format!("Added {count} question(s). Check them below, then Save."), false)));
+        };
+        if replace && current > 0 {
+            ui.ask(
+                "Replace questions",
+                &format!("Replace the {current} existing question(s) with the {count} pasted? This cannot be undone."),
+                "Replace",
+                true,
+                finish,
+            );
+        } else {
+            finish();
         }
-        draft.update(|q| {
-            if replace {
-                q.questions = questions;
-            } else {
-                q.questions.extend(questions);
-            }
-        });
-        preview.set(None);
-        note.set(Some((format!("Added {count} question(s). Check them below, then Save."), false)));
     };
 
     view! {
