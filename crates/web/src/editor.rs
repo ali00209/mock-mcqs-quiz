@@ -12,7 +12,7 @@ use crate::icons;
 use crate::kit::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::input::{Input, InputType};
-use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious};
+use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselFirst, CarouselItem, CarouselLast, CarouselNext, CarouselPrevious};
 use crate::kit::ui::select::Select;
 use crate::kit::ui::switch::Switch;
 use crate::kit::ui::textarea::Textarea;
@@ -367,8 +367,10 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                     />
                 </CarouselContent>
                 <div class="flex flex-wrap items-center gap-2">
+                    <CarouselFirst index=question_index/>
                     <CarouselPrevious index=question_index/>
                     <CarouselNext index=question_index count=question_count/>
+                    <CarouselLast index=question_index count=question_count/>
                 </div>
             </Carousel>
             <Button

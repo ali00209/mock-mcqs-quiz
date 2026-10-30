@@ -77,3 +77,35 @@ pub fn CarouselNext(index: RwSignal<usize>, #[prop(into)] count: Signal<usize>, 
         </Button>
     }
 }
+
+#[component]
+pub fn CarouselFirst(index: RwSignal<usize>, #[prop(optional, into)] class: String) -> impl IntoView {
+    view! {
+        <Button
+            variant=ButtonVariant::Outline
+            class=class
+            attr:aria-disabled=move || (index.get() == 0).then_some("true")
+            on:click=move |_| index.set(0)
+        >
+            "First"
+        </Button>
+    }
+}
+
+#[component]
+pub fn CarouselLast(
+    index: RwSignal<usize>,
+    #[prop(into)] count: Signal<usize>,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
+    view! {
+        <Button
+            variant=ButtonVariant::Outline
+            class=class
+            attr:aria-disabled=move || (index.get() + 1 >= count.get()).then_some("true")
+            on:click=move |_| index.set(count.get().saturating_sub(1))
+        >
+            "Last"
+        </Button>
+    }
+}

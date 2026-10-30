@@ -16,7 +16,7 @@ use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::radio_button::{RadioGroup, RadioGroupItem};
 use crate::ui::{self, Ui};
 use crate::kit::ui::button::{Button, ButtonVariant};
-use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious};
+use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselFirst, CarouselItem, CarouselLast, CarouselNext, CarouselPrevious};
 
 #[derive(Clone, Default)]
 struct Answer {
@@ -288,8 +288,10 @@ fn attempt_view(
             {one.then(|| {
                 view! {
                     <div class="flex flex-wrap items-center gap-2">
+                        <CarouselFirst index=session.index/>
                         <CarouselPrevious index=session.index/>
                         <CarouselNext index=session.index count=total/>
+                        <CarouselLast index=session.index count=total/>
                     </div>
                 }
             })}
