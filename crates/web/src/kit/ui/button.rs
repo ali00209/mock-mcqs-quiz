@@ -10,7 +10,7 @@ variants! {
             variant: {
                 Default: "bg-primary text-primary-foreground shadow-xs hover:bg-foreground hover:text-primary-foreground",
                 Destructive: "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-                Outline: "border-2 border-foreground bg-[#ffffff] shadow-xs hover:bg-foreground hover:text-primary-foreground",
+                Outline: "border-2 border-foreground bg-[#ffffff] dark:bg-surface shadow-xs hover:bg-foreground hover:text-primary-foreground",
                 Secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
                 Ghost: "hover:bg-foreground hover:text-primary-foreground",
                 Accent: "bg-accent text-accent-foreground hover:bg-accent/80",

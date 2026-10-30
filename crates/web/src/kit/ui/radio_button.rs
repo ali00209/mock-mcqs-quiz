@@ -28,7 +28,7 @@ pub fn RadioGroupItem(
     let is_checked = Memo::new(move |_| selected.get() == value_for_check);
 
     let radio_class = tw_merge!(
-        "aspect-square size-4 shrink-0 rounded-full border border-input shadow-xs transition-colors",
+        "aspect-square size-4 shrink-0 rounded-full border border-border shadow-xs transition-colors",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "disabled:cursor-not-allowed disabled:opacity-50",
         "data-[state=checked]:border-primary",

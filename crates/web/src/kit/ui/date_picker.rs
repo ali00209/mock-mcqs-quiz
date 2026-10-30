@@ -9,7 +9,7 @@ use tw_merge::*;
 mod components {
     use super::*;
     clx! {DatePicker, div, "flex flex-col gap-4 p-3 rounded-lg border bg-card text-card-foreground shadow-sm w-fit"}
-    clx! {DatePickerNavButton, button, "inline-flex items-center justify-center p-0 text-sm font-medium transition-colors bg-transparent border rounded-md opacity-50 whitespace-nowrap ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed border-input hover:bg-accent hover:text-accent-foreground size-7 hover:opacity-100  [&_svg:not([class*='size-'])]:size-4"}
+    clx! {DatePickerNavButton, button, "inline-flex items-center justify-center p-0 text-sm font-medium transition-colors bg-transparent border rounded-md opacity-50 whitespace-nowrap ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed border-border hover:bg-accent hover:text-accent-foreground size-7 hover:opacity-100  [&_svg:not([class*='size-'])]:size-4"}
     clx! {DatePickerTitle, span, "text-sm font-medium text-center"}
     clx! {DatePickerHeader, header, "grid grid-cols-[auto_1fr_auto] items-center pt-1"}
     clx! {DatePickerWeekDay, th, "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]"}

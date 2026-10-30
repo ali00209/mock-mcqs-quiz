@@ -27,7 +27,7 @@ pub fn ActionBar(children: Children) -> impl IntoView {
             "}
         </style>
 
-        <div data-name="ActionBar" class="flex items-center p-2 rounded-2xl border shadow-lg border-input bg-[#fcfcfc]">
+        <div data-name="ActionBar" class="flex items-center p-2 rounded-2xl border shadow-lg border-border bg-[#fcfcfc]">
             {children()}
 
             // SVG filter
