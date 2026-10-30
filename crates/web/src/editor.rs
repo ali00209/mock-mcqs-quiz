@@ -12,7 +12,7 @@ use crate::icons;
 use crate::kit::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::input::{Input, InputType};
-use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselFirst, CarouselItem, CarouselLast, CarouselNext, CarouselPrevious};
+use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselFirst, CarouselGoTo, CarouselItem, CarouselLast, CarouselNext, CarouselPrevious};
 use crate::kit::hooks::use_stepper::StepperContext;
 use crate::kit::ui::select::Select;
 use crate::kit::ui::stepper::{Stepper, StepperIndicator, StepperItem, StepperTitle, StepperTrigger};
@@ -130,12 +130,6 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         }
     });
     let question_count = Signal::derive(move || draft.with(|d| d.questions.len()));
-    // The number box shows the question on screen; typing a valid number moves to it.
-    let goto_text = RwSignal::new(String::from("1"));
-    Effect::new(move |_| {
-        let shown = question_index.get() + 1;
-        goto_text.set(shown.to_string());
-    });
     let title = synced(draft, quiz.title.clone(), |q, v| q.title = v.to_string());
     let description = synced(draft, quiz.description.clone(), |q, v| q.description = v.to_string());
     let category = synced(draft, quiz.category.clone().unwrap_or_default(), |q, v| {
@@ -153,6 +147,8 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     );
     let pass_text = RwSignal::new(quiz.settings.pass_percent.map(|p| p.to_string()).unwrap_or_default());
     let issues = RwSignal::new(Vec::<String>::new());
+    // Set when Save finds a problem, so the form can switch to the step that has it.
+    let step_request = RwSignal::new(None::<usize>);
     let saving = RwSignal::new(false);
     // The quiz as the form would save it right now.
     let build = move || {
@@ -165,6 +161,12 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     // The last saved state, compared on exit to catch unsaved changes.
     let baseline = StoredValue::new(build());
     let is_dirty = move || build() != baseline.get_value();
+    // Re-checked when the form changes, so the save bar can show the status.
+    let dirty = RwSignal::new(false);
+    Effect::new(move |_| {
+        let _ = (draft.get(), tags_text.get(), minutes_text.get(), pass_text.get());
+        dirty.set(is_dirty());
+    });
 
     // Validates and saves the quiz, then does what `after` says.
     let commit = move |after: AfterSave| {
@@ -173,10 +175,17 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         }
         let next = build();
 
-        let found: Vec<String> = next.validation_issues().into_iter().map(|issue| issue.message).collect();
+        let all = next.validation_issues();
+        let found: Vec<String> = all.iter().map(|issue| issue.message.clone()).collect();
         let blocked = !found.is_empty();
         issues.set(found);
         if blocked {
+            if let Some(first) = all.first() {
+                step_request.set(Some(step_for_issue(&first.field, first.question_index)));
+                if let Some(index) = first.question_index {
+                    question_index.set(index);
+                }
+            }
             return;
         }
         saving.set(true);
@@ -185,6 +194,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             match api::save_quiz(next.clone()).await {
                 Ok(_) => {
                     baseline.set_value(next);
+                    dirty.set(false);
                     ui.drafts.update(|d| d.retain(|draft| draft != &id));
                     match after {
                         AfterSave::Start => match api::start_attempt(&id, ui::new_seed()).await {
@@ -297,6 +307,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Edit quiz"</h1>
         </div>
         <Stepper total_steps=3>
+            <StepRequest request=step_request/>
             <div class="mb-6 flex w-full gap-2">
                 <StepperItem step=0>
                     <StepperTrigger class="w-full">
@@ -317,6 +328,16 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                     </StepperTrigger>
                 </StepperItem>
             </div>
+            {move || {
+                (!issues.get().is_empty()).then(|| {
+                    view! {
+                        <div class="mb-7 w-full basis-full border-t-2 border-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]" role="alert">
+                            <strong>"Fix these before saving:"</strong>
+                            <ul>{issues.get().into_iter().map(|issue| view! { <li>{issue}</li> }).collect_view()}</ul>
+                        </div>
+                    }
+                })
+            }}
             <FormStep step=0>
         <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Details"</h2>
@@ -344,40 +365,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
 
         <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Questions"</h2>
-            <div class="mb-4 flex flex-wrap items-center gap-3">
-                <label class="flex items-center gap-2">
-                    <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Go to question"</span>
-                    <input
-                        type="number"
-                        inputmode="numeric"
-                        min="1"
-                        max=move || question_count.get().max(1).to_string()
-                        disabled=move || question_count.get() == 0
-                        class="h-9 w-20 border-2 border-ink bg-field-bg px-3 font-mono text-field-ink disabled:opacity-50"
-                        prop:value=move || goto_text.get()
-                        on:input=move |ev| {
-                            let text = event_target_value(&ev);
-                            goto_text.set(text.clone());
-                            if let Ok(n) = text.trim().parse::<usize>() {
-                                if n >= 1 && n <= question_count.get_untracked() {
-                                    question_index.set(n - 1);
-                                }
-                            }
-                        }
-                    />
-                </label>
-                <span class="text-sm text-muted-foreground">
-                    {move || {
-                        let total = question_count.get();
-                        let typed = goto_text.get().trim().parse::<usize>().ok();
-                        match (total, typed) {
-                            (0, _) => "No questions yet".to_string(),
-                            (n, Some(v)) if v < 1 || v > n => format!("Enter 1 to {n}"),
-                            (n, _) => format!("of {n} question{}", if n == 1 { "" } else { "s" }),
-                        }
-                    }}
-                </span>
-            </div>
+            <CarouselGoTo index=question_index count=question_count class="mb-4"/>
             <Carousel index=question_index count=question_count class="flex flex-col gap-4">
                 <CarouselContent>
                     <For
@@ -466,6 +454,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             <div class="sticky bottom-0 z-[3] mt-2 flex w-full basis-full flex-wrap items-center justify-between gap-2 border-t-2 border-ink bg-background py-3.5">
                 <StepNav/>
                 <div class="flex flex-wrap items-center gap-2">
+                <span class="text-sm text-muted-foreground" role="status">{move || if dirty.get() { "Unsaved changes" } else { "All changes saved" }}</span>
                 <Button variant=ButtonVariant::Outline attr:disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</Button>
                 <Button variant=ButtonVariant::Outline on:click=move |_| exit()>"Exit without saving"</Button>
                 <Button variant=ButtonVariant::Default attr:disabled=move || saving.get() on:click=move |_| save()>
@@ -475,16 +464,6 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             </div>
         </Stepper>
 
-        {move || {
-            (!issues.get().is_empty()).then(|| {
-                view! {
-                    <div class="mb-7 border-t-2 border-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]" role="alert">
-                        <strong>"Fix these before saving:"</strong>
-                        <ul>{issues.get().into_iter().map(|issue| view! { <li>{issue}</li> }).collect_view()}</ul>
-                    </div>
-                }
-            })
-        }}
 
     }
 }
@@ -894,4 +873,27 @@ fn StepNav() -> impl IntoView {
                 on:click=move |_| ctx.go_next.run(())>"Next"</Button>
         </div>
     }
+}
+
+/// Which step holds a problem: questions by their index, quiz details by field, the rest in Settings.
+fn step_for_issue(field: &str, question_index: Option<usize>) -> usize {
+    if question_index.is_some() {
+        1
+    } else if matches!(field, "title" | "description" | "category" | "tags") {
+        0
+    } else {
+        2
+    }
+}
+
+/// Moves the stepper to the step requested by a failed save.
+#[component]
+fn StepRequest(request: RwSignal<Option<usize>>) -> impl IntoView {
+    let ctx = expect_context::<StepperContext>();
+    Effect::new(move |_| {
+        if let Some(step) = request.get() {
+            ctx.go_to.run(step);
+            request.set(None);
+        }
+    });
 }

@@ -16,7 +16,7 @@ use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::radio_button::{RadioGroup, RadioGroupItem};
 use crate::ui::{self, Ui};
 use crate::kit::ui::button::{Button, ButtonVariant};
-use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselFirst, CarouselItem, CarouselLast, CarouselNext, CarouselPrevious};
+use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselFirst, CarouselGoTo, CarouselItem, CarouselLast, CarouselNext, CarouselPrevious};
 
 #[derive(Clone, Default)]
 struct Answer {
@@ -251,6 +251,7 @@ fn attempt_view(
     let deadline = view.deadline_at;
     let title = view.quiz_title.clone();
     let nav_ids: Vec<String> = view.questions.iter().map(|q| q.id.clone()).collect();
+    let answer_ids = nav_ids.clone();
     let cards: Vec<_> = view
         .questions
         .into_iter()
@@ -263,13 +264,20 @@ fn attempt_view(
     view! {
         <div class="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
             <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">{title}</h1>
-            <div class="border-2 border-ink px-3 py-1.5 font-mono text-lg font-semibold tabular-nums text-ink" role="timer">{move || match deadline {
-                Some(d) => format!("Time left {}", ui::fmt_clock(d - session.now.get())),
-                None => String::new(),
-            }}</div>
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="text-sm text-muted-foreground" role="status">{move || {
+                    let answered = answer_ids.iter().filter(|id| !session.answer(id).selected.is_empty()).count();
+                    format!("Answered {answered} of {total}")
+                }}</span>
+                <div class="border-2 border-ink px-3 py-1.5 font-mono text-lg font-semibold tabular-nums text-ink" role="timer">{move || match deadline {
+                    Some(d) => format!("Time left {}", ui::fmt_clock(d - session.now.get())),
+                    None => String::new(),
+                }}</div>
+            </div>
         </div>
         {one.then(|| {
             view! {
+                <CarouselGoTo index=session.index count=total class="mb-3"/>
                 <nav class="mb-[18px] flex flex-wrap gap-1.5">
                     {nav_ids
                         .iter()

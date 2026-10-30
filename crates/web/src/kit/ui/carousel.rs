@@ -12,7 +12,7 @@ struct CarouselContext {
 
 /// Arrow keys, Home and End move between slides. Only when the carousel itself has focus,
 /// so typing in a field inside a slide keeps its own arrow keys.
-fn carousel_key(index: RwSignal<usize>, count: Signal<usize>, ev: leptos::ev::KeyboardEvent) {
+fn carousel_key(index: RwSignal<usize>, count: Signal<usize>, used: RwSignal<bool>, ev: leptos::ev::KeyboardEvent) {
     let on_carousel = ev
         .target()
         .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
@@ -33,6 +33,7 @@ fn carousel_key(index: RwSignal<usize>, count: Signal<usize>, ev: leptos::ev::Ke
         "End" => index.set(last),
         _ => return,
     }
+    used.set(true);
     ev.prevent_default();
 }
 
@@ -46,6 +47,7 @@ pub fn Carousel(
     children: Children,
 ) -> impl IntoView {
     provide_context(CarouselContext { index });
+    let used = RwSignal::new(false);
     let merged_class = tw_merge!("relative w-full", class);
     view! {
         <section
@@ -55,8 +57,18 @@ pub fn Carousel(
             aria-label="Questions"
             tabindex="0"
             class=merged_class
-            on:keydown=move |ev| carousel_key(index, count, ev)
+            on:keydown=move |ev| carousel_key(index, count, used, ev)
         >
+            {move || {
+                (count.get() >= 2 && !used.get())
+                    .then(|| {
+                        view! {
+                            <p class="mb-3 text-[13px] text-muted-foreground">
+                                "Tip: Tab to the question area, then use ← and → to move between questions."
+                            </p>
+                        }
+                    })
+            }}
             <p class="sr-only" aria-live="polite">
                 {move || {
                     let total = count.get();
@@ -158,5 +170,56 @@ pub fn CarouselLast(
         >
             "Last"
         </Button>
+    }
+}
+
+/// A number box that jumps to a question. It shows the question on screen and the total.
+#[component]
+pub fn CarouselGoTo(
+    index: RwSignal<usize>,
+    #[prop(into)] count: Signal<usize>,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
+    let text = RwSignal::new(String::from("1"));
+    Effect::new(move |_| {
+        let shown = index.get() + 1;
+        text.set(shown.to_string());
+    });
+    let merged_class = tw_merge!("flex flex-wrap items-center gap-3", class);
+    view! {
+        <div class=merged_class>
+            <label class="flex items-center gap-2">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Go to question"</span>
+                <input
+                    type="number"
+                    inputmode="numeric"
+                    min="1"
+                    max=move || count.get().max(1).to_string()
+                    disabled=move || count.get() == 0
+                    class="h-9 w-20 border-2 border-ink bg-field-bg px-3 font-mono text-field-ink disabled:opacity-50"
+                    prop:value=move || text.get()
+                    on:input=move |ev| {
+                        let typed = event_target_value(&ev);
+                        text.set(typed.clone());
+                        if let Ok(n) = typed.trim().parse::<usize>() {
+                            if n >= 1 && n <= count.get_untracked() {
+                                index.set(n - 1);
+                            }
+                        }
+                    }
+                />
+            </label>
+            <span class="text-sm text-muted-foreground">
+                {move || {
+                    let total = count.get();
+                    let typed = text.get().trim().parse::<usize>().ok();
+                    match (total, typed) {
+                        (0, _) => "No questions yet".to_string(),
+                        (n, Some(v)) if v < 1 || v > n => format!("Enter 1 to {n}"),
+                        (n, _) => format!("of {n} question{}", if n == 1 { "" } else { "s" }),
+                    }
+                }}
+            </span>
+        </div>
     }
 }
