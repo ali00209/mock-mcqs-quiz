@@ -60,14 +60,14 @@ pub fn Editor(ui: Ui, id: String) -> impl IntoView {
     });
 
     move || match loaded.get() {
-        None => view! { <p class="muted">"Loading…"</p> }.into_any(),
-        Some(Err(error)) => view! { <p class="error">{error}</p> }.into_any(),
+        None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+        Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
         Some(Ok(quiz)) if quiz.source == QuizSource::Sample => {
             let id = quiz.id.clone();
             view! {
-                <section class="panel">
-                    <h1>{quiz.title.clone()}</h1>
-                    <p class="muted">"Sample quizzes are read-only. Make an editable copy to change it."</p>
+                <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+                    <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">{quiz.title.clone()}</h1>
+                    <p class="text-muted-foreground">"Sample quizzes are read-only. Make an editable copy to change it."</p>
                     <Button variant=ButtonVariant::Default on:click=move |_| copy_for_editing(ui, id.clone())>
                         "Make an editable copy"
                     </Button>
@@ -269,69 +269,68 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         }
     });
     ui::win().set_onbeforeunload(Some(unload.as_ref().unchecked_ref()));
-    let unload = StoredValue::new_local(unload);
+    let _unload = StoredValue::new_local(unload);
     on_cleanup(move || {
         ui::win().set_onbeforeunload(None);
-        drop(unload);
     });
 
     view! {
-        <div class="page-head">
-            <h1>"Edit quiz"</h1>
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4">
+            <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Edit quiz"</h1>
         </div>
-        <section class="panel">
-            <h2>"Details"</h2>
-            <label class="field">
-                <span>"Title"</span>
+        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Details"</h2>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Title"</span>
                 <Input bind_value=title/>
             </label>
-            <label class="field">
-                <span>"Description"</span>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Description"</span>
                 <Textarea rows=3u32 bind_value=description/>
             </label>
-            <label class="field">
-                <span>"Category"</span>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Category"</span>
                 <Input bind_value=category/>
             </label>
-            <label class="field">
-                <span>"Tags (comma separated)"</span>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Tags (comma separated)"</span>
                 <Input bind_value=tags_text/>
             </label>
         </section>
 
-        <section class="panel">
-            <h2>"Settings"</h2>
-            <label class="field">
-                <span>"Time limit in minutes (blank for none)"</span>
+        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Settings"</h2>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Time limit in minutes (blank for none)"</span>
                 <Input r#type=InputType::Number min="0" bind_value=minutes_text/>
             </label>
-            <label class="field">
-                <span>"Pass mark in percent (blank for none)"</span>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Pass mark in percent (blank for none)"</span>
                 <Input r#type=InputType::Number min="0" max="100" bind_value=pass_text/>
             </label>
-            <label class="check">
+            <label class="mb-2.5 flex items-center gap-2.5">
                 <Checkbox
                     aria_label="Shuffle questions"
                     checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_questions))
                     on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_questions = v))/>
                 <span>"Shuffle questions"</span>
             </label>
-            <label class="check">
+            <label class="mb-2.5 flex items-center gap-2.5">
                 <Checkbox
                     aria_label="Shuffle answer options"
                     checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_options))
                     on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_options = v))/>
                 <span>"Shuffle answer options"</span>
             </label>
-            <label class="check">
+            <label class="mb-2.5 flex items-center gap-2.5">
                 <Checkbox
                     aria_label="Show one question at a time"
                     checked=Signal::derive(move || draft.with(|q| q.settings.one_at_a_time))
                     on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.one_at_a_time = v))/>
                 <span>"Show one question at a time"</span>
             </label>
-            <label class="field">
-                <span>"Answer feedback"</span>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Answer feedback"</span>
                 <SelectNative
                     value=feedback.read_only()
                     on_change=Callback::new(move |ev: Event| feedback.set(event_target_value(&ev)))>
@@ -343,8 +342,8 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
 
         {text_import(ui, draft)}
 
-        <section class="panel">
-            <h2>"Questions"</h2>
+        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Questions"</h2>
             <For
                 each=move || draft.get().questions
                 key=|q| q.id.clone()
@@ -358,7 +357,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             </Button>
             {move || {
                 (draft.with(|q| q.questions.len()) >= MAX_QUESTIONS).then(|| {
-                    view! { <p class="hint">{format!("A quiz can have at most {MAX_QUESTIONS} questions.")}</p> }
+                    view! { <p class="m-0 text-[13px] text-muted-foreground">{format!("A quiz can have at most {MAX_QUESTIONS} questions.")}</p> }
                 })
             }}
         </section>
@@ -366,7 +365,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         {move || {
             (!issues.get().is_empty()).then(|| {
                 view! {
-                    <div class="panel error" role="alert">
+                    <div class="mb-7 border-t-2 border-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]" role="alert">
                         <strong>"Fix these before saving:"</strong>
                         <ul>{issues.get().into_iter().map(|issue| view! { <li>{issue}</li> }).collect_view()}</ul>
                     </div>
@@ -374,7 +373,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             })
         }}
 
-        <div class="save-bar">
+        <div class="sticky bottom-0 z-[3] mt-2 flex flex-wrap justify-end gap-2 border-t-2 border-ink bg-background py-3.5">
             <Button variant=ButtonVariant::Outline attr:disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</Button>
             <Button variant=ButtonVariant::Outline on:click=move |_| exit()>"Exit without saving"</Button>
             <Button variant=ButtonVariant::Default attr:disabled=move || saving.get() on:click=move |_| save()>
@@ -404,10 +403,10 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
     let kind = RwSignal::new(kind_name(draft, &q.id).to_string());
 
     view! {
-        <div class="question">
-            <div class="question-head">
-                <h3 class="question-title">{move || format!("Question {}", index() + 1)}</h3>
-                <div class="actions">
+        <div class="mb-0 border-t-[1.5px] border-ink py-[18px] [h2+&]:border-t-0 [h2+&]:pt-1">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h3 class="m-0 font-display font-stretch-[112%] text-[15px] font-extrabold uppercase tracking-[0.06em]">{move || format!("Question {}", index() + 1)}</h3>
+                <div class="flex flex-wrap items-center gap-2">
                     <Button variant=ButtonVariant::Outline attr:disabled=move || index() == 0
                         attr:aria-label=move || format!("Move question {} up", index() + 1)
                         on:click=move |_| move_question(draft, qid.get_value(), -1)>"Up"</Button>
@@ -421,12 +420,12 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
                     </Button>
                 </div>
             </div>
-            <label class="field">
-                <span>"Prompt"</span>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Prompt"</span>
                 <Textarea rows=2u32 bind_value=prompt/>
             </label>
-            <label class="field">
-                <span>"Type"</span>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Type"</span>
                 <SelectNative
                     value=kind.read_only()
                     on_change=Callback::new(move |ev: Event| {
@@ -438,22 +437,22 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
                     <option value="multi">"Multiple answers"</option>
                 </SelectNative>
             </label>
-            <div class="options">
+            <div >
                 <For
                     each=move || question_options(draft, &qid.get_value())
                     key=|o| o.id.clone()
                     children=move |o: AnswerOption| option_row(draft, qid, o)
                 />
             </div>
-            <div class="actions">
+            <div class="flex flex-wrap items-center gap-2">
                 <Button variant=ButtonVariant::Outline
                     attr:disabled={move || question_option_count(draft, &qid.get_value()) >= MAX_OPTIONS}
                     on:click=move |_| add_option(draft, &qid.get_value())>
                     "Add option"
                 </Button>
             </div>
-            <label class="field">
-                <span>"Explanation (shown after submitting)"</span>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Explanation (shown after submitting)"</span>
                 <Textarea rows=2u32 bind_value=explanation/>
             </label>
         </div>
@@ -481,8 +480,8 @@ fn option_row(draft: RwSignal<Quiz>, qid: StoredValue<String>, o: AnswerOption) 
         }
     });
     view! {
-        <div class="option-row">
-            <label class="correct">
+        <div class="mb-2 grid grid-cols-[auto_1fr_auto] items-center gap-2 max-[600px]:grid-cols-[auto_1fr]">
+            <label class="flex items-center gap-1.5 whitespace-nowrap text-[13px] text-muted-foreground">
                 <Checkbox
                     aria_label="Correct answer"
                     checked=Signal::derive(move || option_is_correct(draft, &qid.get_value(), &oid.get_value()))
@@ -682,16 +681,16 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
     };
 
     view! {
-        <section class="panel">
-            <h2>"Import questions from text"</h2>
-            <p class="muted">
+        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Import questions from text"</h2>
+            <p class="text-muted-foreground">
                 "Paste questions and answers. Put * after each correct option. The quiz title and settings are set in the fields above."
             </p>
             <details>
                 <summary>"Show the format"</summary>
-                <pre class="format">{FORMAT_HELP}</pre>
+                <pre class="whitespace-pre overflow-x-auto border-[1.5px] border-ink bg-surface p-3 font-mono text-[13px] text-field-ink">{FORMAT_HELP}</pre>
             </details>
-            <div class="actions">
+            <div class="flex flex-wrap items-center gap-2">
                 <Button variant=ButtonVariant::Outline on:click=move |ev: leptos::ev::MouseEvent| open_text(ev)>
                     "Add questions from text"
                 </Button>
@@ -726,7 +725,7 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                 {move || {
                     preview.get().map(|result| match result {
                     Err(errors) => view! {
-                        <div class="panel error" role="alert">
+                        <div class="mb-7 border-t-2 border-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]" role="alert">
                             <strong>"Fix these, then check again:"</strong>
                             <ul>{errors.into_iter().map(|e| view! { <li>{e}</li> }).collect_view()}</ul>
                         </div>
@@ -739,10 +738,10 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                             .collect();
                         let count = names.len();
                         view! {
-                            <div class="panel">
-                                <p>{format!("Found {count} question(s):")}</p>
+                            <div class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+                                <p class="mb-2.5">{format!("Found {count} question(s):")}</p>
                                 <ol>{names.into_iter().map(|name| view! { <li>{name}</li> }).collect_view()}</ol>
-                                <div class="actions">
+                                <div class="flex flex-wrap items-center gap-2">
                                     <Button variant=ButtonVariant::Default on:click=move |_| apply(true)>"Replace questions"</Button>
                                     <Button variant=ButtonVariant::Outline on:click=move |_| apply(false)>"Add to questions"</Button>
                                 </div>

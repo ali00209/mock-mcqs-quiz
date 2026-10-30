@@ -233,8 +233,8 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
     };
 
     move || match state.get() {
-        None => view! { <p class="muted">"Loading…"</p> }.into_any(),
-        Some(Err(error)) => view! { <p class="panel error" role="alert">{error}</p> }.into_any(),
+        None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+        Some(Err(error)) => view! { <p class="mb-7 border-t-2 border-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]" role="alert">{error}</p> }.into_any(),
         Some(Ok(view)) => attempt_view(session, view, submit, quit).into_any(),
     }
 }
@@ -258,16 +258,16 @@ fn attempt_view(
         .collect();
 
     view! {
-        <div class="attempt-head">
-            <h1>{title}</h1>
-            <div class="timer" role="timer">{move || match deadline {
+        <div class="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
+            <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">{title}</h1>
+            <div class="border-2 border-ink px-3 py-1.5 font-mono text-lg font-semibold tabular-nums text-ink" role="timer">{move || match deadline {
                 Some(d) => format!("Time left {}", ui::fmt_clock(d - session.now.get())),
                 None => String::new(),
             }}</div>
         </div>
         {one.then(|| {
             view! {
-                <nav class="qnav">
+                <nav class="mb-[18px] flex flex-wrap gap-1.5">
                     {nav_ids
                         .iter()
                         .enumerate()
@@ -276,12 +276,12 @@ fn attempt_view(
                 </nav>
             }
         })}
-        <div class="questions">{cards}</div>
-        <div class="actions attempt-actions">
+        <div >{cards}</div>
+        <div class="flex flex-wrap items-center gap-2 justify-between mt-3">
             {one.then(|| {
                 // aria-disabled instead of disabled: a disabled button loses keyboard focus.
                 view! {
-                    <div class="actions">
+                    <div class="flex flex-wrap items-center gap-2">
                         <Button variant=ButtonVariant::Outline attr:aria-disabled=move || (session.index.get() == 0).then_some("true")
                             on:click=move |_| session.index.update(|i| *i = i.saturating_sub(1))>"Previous"</Button>
                         <Button variant=ButtonVariant::Outline attr:aria-disabled=move || (session.index.get() + 1 >= total).then_some("true")
@@ -294,7 +294,7 @@ fn attempt_view(
                 }
             })}
             <Button variant=ButtonVariant::Destructive on:click=move |_| quit()>"Quit attempt"</Button>
-            <Button variant=ButtonVariant::Default class="submit" on:click=move |_| submit()>"Submit attempt"</Button>
+            <Button variant=ButtonVariant::Default class="ml-auto" on:click=move |_| submit()>"Submit attempt"</Button>
         </div>
     }
 }
@@ -315,15 +315,20 @@ fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
         <Button
             class=move || {
                 let answer = session.answer(&qid);
-                let mut class = String::from("qbtn");
-                if session.index.get() == position {
-                    class.push_str(" current");
-                }
+                let current = session.index.get() == position;
+                let mut class = String::from("min-h-11 min-w-11 p-0 border-2 border-ink bg-field-bg font-mono text-sm font-semibold normal-case tracking-normal text-field-ink cursor-pointer hover:not-disabled:bg-ink hover:not-disabled:text-surface disabled:cursor-not-allowed disabled:opacity-50");
                 if !answer.selected.is_empty() {
-                    class.push_str(" answered");
+                    class.push_str(" bg-muted");
+                }
+                if current {
+                    class.push_str(" bg-primary border-primary text-primary-foreground");
                 }
                 if answer.flagged {
-                    class.push_str(" flagged");
+                    class.push_str(if current {
+                        " border-[#8a5a0b] text-primary-foreground"
+                    } else {
+                        " border-[#8a5a0b] text-[#8a5a0b]"
+                    });
                 }
                 class
             }
@@ -382,14 +387,14 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
             let text = o.text;
             match kind {
                 QuestionKind::Single => view! {
-                    <label class="choice">
+                    <label class="flex cursor-pointer items-start gap-3 border-[1.5px] border-ink bg-field-bg px-3.5 py-3 text-field-ink hover:border-primary has-[[aria-checked=true]]:border-2 has-[[aria-checked=true]]:border-primary has-[[aria-checked=true]]:bg-muted [&>span]:whitespace-pre-wrap">
                         <RadioGroupItem value=oid.get_value() disabled=Signal::derive(move || session.is_locked(&qid.get_value())) />
                         <span>{text}</span>
                     </label>
                 }
                 .into_any(),
                 QuestionKind::Multi => view! {
-                    <label class="choice">
+                    <label class="flex cursor-pointer items-start gap-3 border-[1.5px] border-ink bg-field-bg px-3.5 py-3 text-field-ink hover:border-primary has-[[aria-checked=true]]:border-2 has-[[aria-checked=true]]:border-primary has-[[aria-checked=true]]:bg-muted [&>span]:whitespace-pre-wrap">
                         <Checkbox
                             aria_label=text.clone()
                             disabled=Signal::derive(move || session.is_locked(&qid.get_value()))
@@ -404,8 +409,8 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
         .collect::<Vec<AnyView>>()
     };
     let options = match kind {
-        QuestionKind::Single => view! { <RadioGroup class="choices" value=picked>{build_choices()}</RadioGroup> }.into_any(),
-        QuestionKind::Multi => view! { <div class="choices">{build_choices()}</div> }.into_any(),
+        QuestionKind::Single => view! { <RadioGroup class="flex flex-col gap-2.5" value=picked>{build_choices()}</RadioGroup> }.into_any(),
+        QuestionKind::Multi => view! { <div class="flex flex-col gap-2.5">{build_choices()}</div> }.into_any(),
     };
 
     // Shown once the question has an answer, when the quiz marks answers as they go.
@@ -423,26 +428,30 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
             ids.sort();
             ids == chosen
         });
-        let (class, text) = if correct {
-            ("feedback ok", "Correct.".to_string())
+        let (class, strong, text) = if correct {
+            ("mt-3.5 border-2 border-ok px-3.5 py-3", "mb-1 block text-ok", "Correct.".to_string())
         } else {
-            ("feedback bad", format!("Not quite. The correct answer is {}.", correct_text.get_value()))
+            (
+                "mt-3.5 border-2 border-bad px-3.5 py-3",
+                "mb-1 block text-bad",
+                format!("Not quite. The correct answer is {}.", correct_text.get_value()),
+            )
         };
         let explanation = explanation.get_value();
         Some(view! {
             <div class={class} role="status">
-                <strong>{text}</strong>
-                {(!explanation.is_empty()).then(|| view! { <p>{explanation}</p> })}
+                <strong class={strong}>{text}</strong>
+                {(!explanation.is_empty()).then(|| view! { <p class="mt-1 mb-0">{explanation}</p> })}
             </div>
         })
     };
 
     view! {
-        <section class="panel question" class:hidden=move || one && session.index.get() != position>
-            <div class="question-head">
-                <h2 class="question-title">{format!("Question {}", position + 1)}</h2>
-                <span class="muted">{if kind == QuestionKind::Single { "Choose one" } else { "Choose all that apply" }}</span>
-                <label class="flag">
+        <section class="mb-[18px] bg-surface p-0 [overflow-wrap:anywhere]" class:hidden=move || one && session.index.get() != position>
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 class="m-0 font-display font-stretch-[112%] text-[15px] font-extrabold uppercase tracking-[0.06em]">{format!("Question {}", position + 1)}</h2>
+                <span class="text-muted-foreground">{if kind == QuestionKind::Single { "Choose one" } else { "Choose all that apply" }}</span>
+                <label class="flex cursor-pointer items-center gap-1.5 text-[13px] text-muted-foreground">
                     <Checkbox
                         aria_label="Flag this question"
                         checked=Signal::derive(move || session.answer(&qid.get_value()).flagged)
@@ -450,7 +459,7 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
                     "Flag"
                 </label>
             </div>
-            <p class="prompt">{q.prompt}</p>
+            <p class="mt-2 mb-4 whitespace-pre-wrap text-[17px] leading-[1.5] [overflow-wrap:anywhere]">{q.prompt}</p>
             {options}
             {feedback}
         </section>
@@ -465,8 +474,8 @@ pub fn Review(ui: Ui, id: String) -> impl IntoView {
     });
 
     move || match state.get() {
-        None => view! { <p class="muted">"Loading…"</p> }.into_any(),
-        Some(Err(error)) => view! { <p class="error">{error}</p> }.into_any(),
+        None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+        Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
         Some(Ok(review)) => review_view(ui, review).into_any(),
     }
 }
@@ -483,31 +492,31 @@ fn review_view(ui: Ui, review: AttemptReview) -> impl IntoView {
         .collect();
 
     view! {
-        <div class="page-head">
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4">
             <div>
-                <h1>{a.quiz_title.clone()}</h1>
-                <p class="muted">{format!("{} · {}", ui::fmt_date(a.started_at), ui::status_label(a.status))}</p>
+                <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">{a.quiz_title.clone()}</h1>
+                <p class="text-muted-foreground">{format!("{} · {}", ui::fmt_date(a.started_at), ui::status_label(a.status))}</p>
             </div>
-            <div class="actions">
+            <div class="flex flex-wrap items-center gap-2">
                 <Button variant=ButtonVariant::Outline href="#/".to_string()>"Library"</Button>
                 {retake_quiz.map(|quiz_id| {
                     view! { <Button variant=ButtonVariant::Default on:click=move |_| retake(ui, quiz_id.clone())>"Retake"</Button> }
                 })}
             </div>
         </div>
-        <section class="panel score">
-            <div class="big">{ui::pct(a.score_percent)}</div>
+        <section class="mb-7 border-b-2 border-ink bg-surface px-5 py-[34px] text-center [overflow-wrap:anywhere]">
+            <div class="font-display font-stretch-[125%] font-black text-[84px] leading-none text-primary tabular-nums max-[600px]:text-[64px]">{ui::pct(a.score_percent)}</div>
             <div>{format!("{} of {} correct", a.correct_count.unwrap_or(0), a.total_count)}</div>
             {review.pass_percent.map(|pass| {
                 let (class, text) = if passed {
-                    ("pass", "Passed".to_string())
+                    ("font-display font-stretch-[112%] font-extrabold uppercase tracking-[0.06em] text-ok", "Passed".to_string())
                 } else {
-                    ("fail", format!("Not passed (pass mark {pass}%)"))
+                    ("font-display font-stretch-[112%] font-extrabold uppercase tracking-[0.06em] text-bad", format!("Not passed (pass mark {pass}%)"))
                 };
                 view! { <div class={class}>{text}</div> }
             })}
-            <p class="result-note">{result_note(a.passed, a.correct_count.unwrap_or(0), a.total_count)}</p>
-            <div class="muted">{format!("Time taken: {}", ui::fmt_duration(a.duration_ms))}</div>
+            <p class="mx-auto mt-3.5 mb-2.5 max-w-[56ch]">{result_note(a.passed, a.correct_count.unwrap_or(0), a.total_count)}</p>
+            <div class="text-muted-foreground">{format!("Time taken: {}", ui::fmt_duration(a.duration_ms))}</div>
         </section>
         {questions}
     }
@@ -528,20 +537,19 @@ fn result_note(passed: Option<bool>, correct: u32, total: u32) -> &'static str {
 
 fn review_question(index: usize, q: ReviewQuestion) -> impl IntoView {
     let (class, badge_class, badge_text) = if q.is_correct {
-        ("panel review-q ok", "text-[var(--ok)] border-[var(--ok)]", "Correct")
+        ("mb-7 border-t-2 border-t-ok bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]", "text-[var(--ok)] border-[var(--ok)]", "Correct")
     } else {
-        ("panel review-q bad", "text-[var(--bad)] border-[var(--bad)]", "Incorrect")
+        ("mb-7 border-t-2 border-t-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]", "text-[var(--bad)] border-[var(--bad)]", "Incorrect")
     };
     let options: Vec<_> = q
         .options
         .into_iter()
         .map(|o| {
-            let mut class = String::from("opt");
+            let mut class = String::from("mb-1 px-2.5 py-2 text-muted-foreground [&>svg]:mr-1.5 [&>svg]:inline-block");
             if o.is_correct {
-                class.push_str(" correct");
-            }
-            if o.selected {
-                class.push_str(" picked");
+                class.push_str(" font-semibold text-ok");
+            } else if o.selected {
+                class.push_str(" text-bad");
             }
             let mark = if o.is_correct {
                 icons::check().into_any()
@@ -559,15 +567,15 @@ fn review_question(index: usize, q: ReviewQuestion) -> impl IntoView {
 
     view! {
         <section class={class}>
-            <div class="question-head">
-                <h2 class="question-title">{format!("Question {}", index + 1)}</h2>
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 class="m-0 font-display font-stretch-[112%] text-[15px] font-extrabold uppercase tracking-[0.06em]">{format!("Question {}", index + 1)}</h2>
                 <Badge variant=BadgeVariant::Outline class=badge_class>{badge_text}</Badge>
                 {q.flagged.then(|| view! { <Badge variant=BadgeVariant::Outline class="text-[var(--warn)] border-[var(--warn)]">"Flagged"</Badge> })}
             </div>
-            <p class="prompt">{q.prompt}</p>
-            <ul class="review-options">{options}</ul>
+            <p class="mt-2 mb-4 whitespace-pre-wrap text-[17px] leading-[1.5] [overflow-wrap:anywhere]">{q.prompt}</p>
+            <ul class="my-2.5 list-none p-0">{options}</ul>
             {(!explanation.is_empty()).then(|| {
-                view! { <p class="explanation"><strong>"Explanation: "</strong>{explanation}</p> }
+                view! { <p class="border-[1.5px] border-ink bg-surface px-3.5 py-3"><strong>"Explanation: "</strong>{explanation}</p> }
             })}
         </section>
     }

@@ -94,18 +94,18 @@ fn App() -> impl IntoView {
     view! {
         <ui::ConfirmDialog ui=ui/>
         <Toaster/>
-        <nav class="page-tabs" aria-label="Pages">
+        <nav class="mx-auto flex max-w-[960px] flex-wrap justify-end gap-1.5 px-4 pt-4" aria-label="Pages">
             <a href="#/" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
             <a href="#/history" aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
             <a href="#/data" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
         </nav>
-        <main class="container">
+        <main class="mx-auto max-w-[960px] px-4 pt-7 pb-[72px]">
             {move || {
                 temporary.get().then(|| {
                     view! {
-                        <section class="panel" role="status">
-                            <h2>"Progress is not kept in this browser"</h2>
-                            <p class="muted">
+                        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]" role="status">
+                            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Progress is not kept in this browser"</h2>
+                            <p class="text-muted-foreground">
                                 "This browser can't save data between visits. Quizzes, answers and history last only until you close this page. Use Chrome, Edge or another browser to keep them."
                             </p>
                         </section>
@@ -119,7 +119,7 @@ fn App() -> impl IntoView {
                 Page::Edit(id) => view! { <editor::Editor ui=ui id=id/> }.into_any(),
                 Page::Attempt(id) => view! { <attempt::Attempt ui=ui id=id/> }.into_any(),
                 Page::Review(id) => view! { <attempt::Review ui=ui id=id/> }.into_any(),
-                Page::NotFound => view! { <p class="muted">"Page not found."</p> }.into_any(),
+                Page::NotFound => view! { <p class="text-muted-foreground">"Page not found."</p> }.into_any(),
             }}
         </main>
     }
@@ -138,21 +138,21 @@ fn Library(ui: Ui) -> impl IntoView {
     });
 
     view! {
-        <div class="page-head">
-            <h1>"Your quizzes"</h1>
-            <div class="actions">
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4">
+            <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Your quizzes"</h1>
+            <div class="flex flex-wrap items-center gap-2">
                 <Button variant=ButtonVariant::Default on:click=move |_| new_quiz(ui)>"New quiz"</Button>
                 <Button variant=ButtonVariant::Outline on:click=move |_| import_quiz(ui)>"Import"</Button>
             </div>
         </div>
         {move || match data.get() {
-            None => view! { <p class="muted">"Loading…"</p> }.into_any(),
-            Some(Err(error)) => view! { <p class="error">{error}</p> }.into_any(),
+            None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+            Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
             Some(Ok(bootstrap)) if bootstrap.quizzes.is_empty() => view! {
-                <section class="panel empty">
-                    <h2>"No quizzes yet"</h2>
-                    <p class="muted">"Create a quiz, or import a quiz file you already have."</p>
-                    <div class="actions">
+                <section class="mb-7 border-t-0 bg-surface px-[18px] py-10 text-center [overflow-wrap:anywhere]">
+                    <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"No quizzes yet"</h2>
+                    <p class="text-muted-foreground">"Create a quiz, or import a quiz file you already have."</p>
+                    <div class="flex flex-wrap items-center gap-2">
                         <Button variant=ButtonVariant::Default on:click=move |_| new_quiz(ui)>"New quiz"</Button>
                         <Button variant=ButtonVariant::Outline on:click=move |_| import_quiz(ui)>"Import"</Button>
                     </div>
@@ -160,7 +160,7 @@ fn Library(ui: Ui) -> impl IntoView {
             }
             .into_any(),
             Some(Ok(bootstrap)) => view! {
-                <div class="grid">
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-[18px] [overflow-wrap:anywhere]">
                     {bootstrap.quizzes.into_iter().map(|q| quiz_card(ui, q)).collect_view()}
                 </div>
             }
@@ -206,20 +206,20 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
     let hint = if ready { None } else { Some("Open Edit to finish this quiz before starting it.") };
 
     view! {
-        <article class="card-article">
+        <article >
           <Card class="h-full">
-            <div class="card-head">
-                <h2 class="card-title">{q.title.clone()}</h2>
-                <div class="badges">
+            <div class="flex items-start justify-between gap-2">
+                <h2 class="m-0 font-display font-stretch-[112%] text-lg font-extrabold uppercase leading-[1.2] tracking-[0.02em] [overflow-wrap:anywhere]">{q.title.clone()}</h2>
+                <div class="flex flex-wrap gap-1.5">
                     {is_sample.then(|| view! { <Badge variant=BadgeVariant::Secondary>"Sample"</Badge> })}
                     {(!ready).then(|| view! { <Badge variant=BadgeVariant::Outline class="text-[var(--warn)] border-[var(--warn)]">"Incomplete"</Badge> })}
                 </div>
             </div>
-            {(!q.description.is_empty()).then(|| view! { <p class="muted">{q.description.clone()}</p> })}
-            <p class="meta">{details}</p>
-            <p class="meta">{attempts}</p>
-            {hint.map(|text| view! { <p class="hint">{text}</p> })}
-            <div class="actions">
+            {(!q.description.is_empty()).then(|| view! { <p class="text-muted-foreground">{q.description.clone()}</p> })}
+            <p class="m-0 text-[13px] text-muted-foreground">{details}</p>
+            <p class="m-0 text-[13px] text-muted-foreground">{attempts}</p>
+            {hint.map(|text| view! { <p class="m-0 text-[13px] text-muted-foreground">{text}</p> })}
+            <div class="flex flex-wrap items-center gap-2">
                 {match resume_href {
                     Some(href) => view! { <Button variant=ButtonVariant::Default href=href>"Resume"</Button> }.into_any(),
                     None => view! {
@@ -344,18 +344,18 @@ fn History(ui: Ui) -> impl IntoView {
     });
 
     view! {
-        <div class="page-head"><h1>"History"</h1></div>
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"History"</h1></div>
         {move || match data.get() {
-            None => view! { <p class="muted">"Loading…"</p> }.into_any(),
-            Some(Err(error)) => view! { <p class="error">{error}</p> }.into_any(),
+            None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+            Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
             Some(Ok(bootstrap)) if bootstrap.attempts.is_empty() => {
-                view! { <p class="muted">"No attempts yet."</p> }.into_any()
+                view! { <p class="text-muted-foreground">"No attempts yet."</p> }.into_any()
             }
             Some(Ok(bootstrap)) => {
                 let mut rows: Vec<AttemptSummary> = bootstrap.attempts;
                 rows.sort_by(|a, b| b.started_at.cmp(&a.started_at));
                 view! {
-                    <div class="actions">
+                    <div class="flex flex-wrap items-center gap-2">
                         <Button variant=ButtonVariant::Destructive on:click=move |_| clear_history(ui)>"Clear history"</Button>
                     </div>
                     <TableWrapper>
@@ -434,20 +434,20 @@ fn history_row(a: AttemptSummary) -> impl IntoView {
 #[component]
 fn Data(ui: Ui) -> impl IntoView {
     view! {
-        <div class="page-head"><h1>"Data"</h1></div>
-        <section class="panel">
-            <h2>"Backup"</h2>
-            <p class="muted">"Save all quizzes and attempt history to a file you can restore later."</p>
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Data"</h1></div>
+        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Backup"</h2>
+            <p class="text-muted-foreground">"Save all quizzes and attempt history to a file you can restore later."</p>
             <Button variant=ButtonVariant::Default on:click=move |_| backup(ui)>"Download backup"</Button>
         </section>
-        <section class="panel">
-            <h2>"Restore"</h2>
-            <p class="muted">"Replaces all current quizzes and history with the contents of a backup file."</p>
+        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Restore"</h2>
+            <p class="text-muted-foreground">"Replaces all current quizzes and history with the contents of a backup file."</p>
             <Button variant=ButtonVariant::Outline on:click=move |_| restore(ui)>"Restore from backup…"</Button>
         </section>
-        <section class="panel danger-zone">
-            <h2>"Reset"</h2>
-            <p class="muted">"Deletes all quizzes and history."</p>
+        <section class="mb-7 border-t-2 border-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Reset"</h2>
+            <p class="text-muted-foreground">"Deletes all quizzes and history."</p>
             <Button variant=ButtonVariant::Destructive on:click=move |_| reset(ui)>"Reset everything"</Button>
         </section>
     }
