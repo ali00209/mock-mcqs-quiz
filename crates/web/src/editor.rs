@@ -63,7 +63,7 @@ pub fn Editor(ui: Ui, id: String) -> impl IntoView {
     });
 
     move || match loaded.get() {
-        None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+        None => ui::loading("Loading quiz").into_any(),
         Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
         Some(Ok(quiz)) if quiz.source == QuizSource::Sample => {
             let id = quiz.id.clone();
@@ -312,19 +312,19 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 <StepperItem step=0>
                     <StepperTrigger class="w-full">
                         <StepperIndicator/>
-                        <StepperTitle>"Details"</StepperTitle>
+                        <StepperTitle class="hidden sm:block">"Details"</StepperTitle>
                     </StepperTrigger>
                 </StepperItem>
                 <StepperItem step=1>
                     <StepperTrigger class="w-full">
                         <StepperIndicator/>
-                        <StepperTitle>"Questions"</StepperTitle>
+                        <StepperTitle class="hidden sm:block">"Questions"</StepperTitle>
                     </StepperTrigger>
                 </StepperItem>
                 <StepperItem step=2>
                     <StepperTrigger class="w-full">
                         <StepperIndicator/>
-                        <StepperTitle>"Settings"</StepperTitle>
+                        <StepperTitle class="hidden sm:block">"Settings"</StepperTitle>
                     </StepperTrigger>
                 </StepperItem>
             </div>
@@ -365,6 +365,15 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
 
         <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Questions"</h2>
+            {move || {
+                (question_count.get() == 0).then(|| {
+                    view! {
+                        <p class="mb-4 text-muted-foreground">
+                            "This quiz has no questions yet. Paste questions as text above, or add one below."
+                        </p>
+                    }
+                })
+            }}
             <CarouselGoTo index=question_index count=question_count class="mb-4"/>
             <Carousel index=question_index count=question_count class="flex flex-col gap-4">
                 <CarouselContent>

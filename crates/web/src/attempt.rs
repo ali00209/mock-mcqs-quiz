@@ -234,7 +234,7 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
     };
 
     move || match state.get() {
-        None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+        None => ui::loading("Loading attempt").into_any(),
         Some(Err(error)) => view! { <p class="mb-7 border-t-2 border-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]" role="alert">{error}</p> }.into_any(),
         Some(Ok(view)) => attempt_view(session, view, submit, quit).into_any(),
     }
@@ -277,7 +277,7 @@ fn attempt_view(
         </div>
         {one.then(|| {
             view! {
-                <nav class="mb-[18px] flex flex-wrap gap-1.5">
+                <nav class="mb-[18px] flex flex-wrap gap-1.5 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-1">
                     {nav_ids
                         .iter()
                         .enumerate()
@@ -325,7 +325,7 @@ fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
             class=move || {
                 let answer = session.answer(&qid);
                 let current = session.index.get() == position;
-                let mut class = String::from("min-h-11 min-w-11 p-0 border-2 border-ink bg-field-bg font-mono text-sm font-semibold normal-case tracking-normal text-field-ink cursor-pointer hover:not-disabled:bg-ink hover:not-disabled:text-surface disabled:cursor-not-allowed disabled:opacity-50");
+                let mut class = String::from("shrink-0 min-h-11 min-w-11 p-0 border-2 border-ink bg-field-bg font-mono text-sm font-semibold normal-case tracking-normal text-field-ink cursor-pointer hover:not-disabled:bg-ink hover:not-disabled:text-surface disabled:cursor-not-allowed disabled:opacity-50");
                 if !answer.selected.is_empty() {
                     class.push_str(" bg-muted");
                 }
@@ -443,13 +443,14 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
             (
                 "mt-3.5 border-2 border-bad px-3.5 py-3",
                 "mb-1 block text-bad",
-                format!("Not quite. The correct answer is {}.", correct_text.get_value()),
+                format!("Incorrect. The correct answer is {}.", correct_text.get_value()),
             )
         };
+        let mark = if correct { icons::check().into_any() } else { icons::cross().into_any() };
         let explanation = explanation.get_value();
         Some(view! {
             <div class={class} role="status">
-                <strong class={strong}>{text}</strong>
+                <strong class={strong}><span class="inline-flex items-center gap-2">{mark}{text}</span></strong>
                 {(!explanation.is_empty()).then(|| view! { <p class="mt-1 mb-0">{explanation}</p> })}
             </div>
         })
@@ -483,7 +484,7 @@ pub fn Review(ui: Ui, id: String) -> impl IntoView {
     });
 
     move || match state.get() {
-        None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+        None => ui::loading("Loading attempt").into_any(),
         Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
         Some(Ok(review)) => review_view(ui, review).into_any(),
     }

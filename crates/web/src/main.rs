@@ -150,12 +150,12 @@ fn Library(ui: Ui) -> impl IntoView {
             </div>
         </div>
         {move || match data.get() {
-            None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+            None => ui::loading("Loading quizzes").into_any(),
             Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
             Some(Ok(bootstrap)) if bootstrap.quizzes.is_empty() => view! {
                 <section class="mb-7 border-t-0 bg-surface px-[18px] py-10 text-center [overflow-wrap:anywhere]">
                     <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"No quizzes yet"</h2>
-                    <p class="text-muted-foreground">"Create a quiz, or import a quiz file you already have."</p>
+                    <p class="mx-auto mb-4 max-w-[56ch] text-muted-foreground">"Write your own questions, paste them as plain text, or import a quiz file you already have. Your quizzes stay in this browser."</p>
                     <div class="flex flex-wrap items-center gap-2">
                         <Button variant=ButtonVariant::Default on:click=move |_| new_quiz(ui)>"New quiz"</Button>
                         <Button variant=ButtonVariant::Outline on:click=move |_| import_quiz(ui)>"Import"</Button>
@@ -169,13 +169,13 @@ fn Library(ui: Ui) -> impl IntoView {
                     <div class="mb-4 max-w-md">
                         <Input r#type=InputType::Search placeholder="Search by title, category or tag" aria_label="Search quizzes" bind_value=search/>
                     </div>
-                    <Table>
-                        <TableHeader>
+                    <Table class="max-sm:block">
+                        <TableHeader class="max-sm:hidden">
                             <TableRow>
                                 <TableHead>"Quiz"</TableHead><TableHead>"Questions"</TableHead><TableHead>"Time limit"</TableHead><TableHead>"Attempts"</TableHead><TableHead>""</TableHead>
                             </TableRow>
                         </TableHeader>
-                        <TableBody>
+                        <TableBody class="max-sm:block">
                             {move || {
                                 let needle = search.get().trim().to_lowercase();
                                 let rows = quizzes.with_value(|list| {
@@ -247,8 +247,8 @@ fn quiz_row(ui: Ui, q: QuizSummary) -> impl IntoView {
     let delete_title = StoredValue::new(q.title.clone());
 
     view! {
-        <TableRow>
-            <TableCell class="whitespace-normal">
+        <TableRow class="max-sm:mb-4 max-sm:block max-sm:border-2 max-sm:border-ink max-sm:p-3">
+            <TableCell class="whitespace-normal max-sm:block max-sm:p-1">
                 <div class="flex flex-wrap items-center gap-1.5">
                     <span class="font-display font-stretch-[112%] font-extrabold uppercase tracking-[0.02em] [overflow-wrap:anywhere]">{q.title.clone()}</span>
                     {is_sample.then(|| view! { <Badge variant=BadgeVariant::Secondary>"Sample"</Badge> })}
@@ -257,10 +257,10 @@ fn quiz_row(ui: Ui, q: QuizSummary) -> impl IntoView {
                 {(!meta.is_empty()).then(|| view! { <div class="mt-1 text-[13px] text-muted-foreground">{meta}</div> })}
                 {hint.map(|text| view! { <div class="mt-1 text-[13px] text-muted-foreground">{text}</div> })}
             </TableCell>
-            <TableCell>{q.question_count}</TableCell>
-            <TableCell>{time}</TableCell>
-            <TableCell>{attempts}</TableCell>
-            <TableCell>
+            <TableCell class="max-sm:block max-sm:p-1"><span class="text-muted-foreground sm:hidden">"Questions: "</span>{q.question_count}</TableCell>
+            <TableCell class="max-sm:block max-sm:p-1"><span class="text-muted-foreground sm:hidden">"Time limit: "</span>{time}</TableCell>
+            <TableCell class="max-sm:block max-sm:p-1"><span class="text-muted-foreground sm:hidden">"Attempts: "</span>{attempts}</TableCell>
+            <TableCell class="max-sm:block max-sm:p-1">
                 <div class="flex flex-wrap items-center justify-end gap-2">
                     {match resume_href {
                         Some(href) => view! { <Button variant=ButtonVariant::Default href=href>"Resume"</Button> }.into_any(),
@@ -388,11 +388,16 @@ fn History(ui: Ui) -> impl IntoView {
     view! {
         <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"History"</h1></div>
         {move || match data.get() {
-            None => view! { <p class="text-muted-foreground">"Loading…"</p> }.into_any(),
+            None => ui::loading("Loading history").into_any(),
             Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
-            Some(Ok(bootstrap)) if bootstrap.attempts.is_empty() => {
-                view! { <p class="text-muted-foreground">"No attempts yet."</p> }.into_any()
+            Some(Ok(bootstrap)) if bootstrap.attempts.is_empty() => view! {
+                <section class="mb-7 border-t-0 bg-surface px-[18px] py-10 text-center [overflow-wrap:anywhere]">
+                    <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"No attempts yet"</h2>
+                    <p class="mx-auto mb-4 max-w-[56ch] text-muted-foreground">"Start a quiz from the Library. Your answers and scores are kept here, even after you close the tab."</p>
+                    <Button variant=ButtonVariant::Default href="#/".to_string()>"Go to the Library"</Button>
+                </section>
             }
+            .into_any(),
             Some(Ok(bootstrap)) => {
                 let mut rows: Vec<AttemptSummary> = bootstrap.attempts;
                 rows.sort_by(|a, b| b.started_at.cmp(&a.started_at));

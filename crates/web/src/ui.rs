@@ -1,5 +1,6 @@
 // Shared UI state and browser helpers.
 use js_sys::{Array, Date, Function, Promise};
+use crate::kit::ui::skeleton::Skeleton;
 use leptos::prelude::*;
 use leptos::prelude::LocalStorage;
 use std::cell::Cell;
@@ -353,4 +354,16 @@ pub async fn pick_text(accept: &str) -> Result<Option<String>, JsValue> {
     };
     let text = JsFuture::from(file.text()).await?;
     Ok(text.as_string())
+}
+
+/// Placeholder rows shown while data loads. The label is read by screen readers.
+pub fn loading(label: &'static str) -> impl IntoView {
+    view! {
+        <div class="flex flex-col gap-3" role="status" aria-busy="true">
+            <span class="sr-only">{label}</span>
+            <Skeleton class="h-12 w-full" />
+            <Skeleton class="h-12 w-full" />
+            <Skeleton class="h-12 w-3/4" />
+        </div>
+    }
 }
