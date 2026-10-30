@@ -352,7 +352,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             />
             <Button
                 variant=ButtonVariant::Outline
-                attr:disabled=move || draft.with(|q| q.questions.len() >= MAX_QUESTIONS)
+                attr:disabled={move || draft.with(|q| q.questions.len() >= MAX_QUESTIONS)}
                 on:click=move |_| draft.update(|q| q.questions.push(Question::blank()))>
                 "Add question"
             </Button>
@@ -411,7 +411,7 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
                     <Button variant=ButtonVariant::Outline attr:disabled=move || index() == 0
                         attr:aria-label=move || format!("Move question {} up", index() + 1)
                         on:click=move |_| move_question(draft, qid.get_value(), -1)>"Up"</Button>
-                    <Button variant=ButtonVariant::Outline attr:disabled=move || index() + 1 >= count()
+                    <Button variant=ButtonVariant::Outline attr:disabled={move || index() + 1 >= count()}
                         attr:aria-label=move || format!("Move question {} down", index() + 1)
                         on:click=move |_| move_question(draft, qid.get_value(), 1)>"Down"</Button>
                     <Button variant=ButtonVariant::Destructive
@@ -447,7 +447,7 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
             </div>
             <div class="actions">
                 <Button variant=ButtonVariant::Outline
-                    attr:disabled=move || question_option_count(draft, &qid.get_value()) >= MAX_OPTIONS
+                    attr:disabled={move || question_option_count(draft, &qid.get_value()) >= MAX_OPTIONS}
                     on:click=move |_| add_option(draft, &qid.get_value())>
                     "Add option"
                 </Button>
@@ -494,7 +494,7 @@ fn option_row(draft: RwSignal<Quiz>, qid: StoredValue<String>, o: AnswerOption) 
                 bind_value=text
                 aria_label=Signal::derive(move || format!("Option {} text", option_number(draft, &qid.get_value(), &oid.get_value())))/>
             <Button variant=ButtonVariant::Ghost size=ButtonSize::IconSm
-                attr:disabled=move || question_option_count(draft, &qid.get_value()) <= MIN_OPTIONS
+                attr:disabled={move || question_option_count(draft, &qid.get_value()) <= MIN_OPTIONS}
                 attr:title="Remove option"
                 attr:aria-label=move || format!("Remove option {}", option_number(draft, &qid.get_value(), &oid.get_value()))
                 on:click=move |_| remove_option(draft, &qid.get_value(), &oid.get_value())>
