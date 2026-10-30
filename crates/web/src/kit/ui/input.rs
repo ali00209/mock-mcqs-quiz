@@ -36,6 +36,7 @@ pub fn Input(
     #[prop(into, optional)] name: Option<String>,
     #[prop(into, optional)] id: Option<String>,
     #[prop(into, optional)] title: Option<String>,
+    #[prop(optional, into)] aria_label: leptos::prelude::MaybeProp<String>,
     #[prop(into, optional)] autocomplete: Option<String>,
     #[prop(optional)] disabled: bool,
     #[prop(optional)] readonly: bool,
@@ -75,6 +76,7 @@ pub fn Input(
                 name=name
                 id=id
                 title=title
+                aria-label=aria_label
                 autocomplete=autocomplete
                 disabled=disabled
                 readonly=readonly
@@ -98,6 +100,7 @@ pub fn Input(
                 name=name
                 id=id
                 title=title
+                aria-label=aria_label
                 autocomplete=autocomplete
                 disabled=disabled
                 readonly=readonly
