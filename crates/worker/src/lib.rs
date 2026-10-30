@@ -213,12 +213,38 @@ fn handle_request(state: &Rc<RefCell<WorkerState>>, message: &str) -> Result<(),
     Ok(())
 }
 
+/// Waits inside the worker. Used between attempts to open the saved data.
+async fn sleep_ms(ms: i32) {
+    let promise = js_sys::Promise::new(&mut |resolve: js_sys::Function, _reject| {
+        let _ = worker_scope().set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms);
+    });
+    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+}
+
+/// Opens the saved-data storage. Browsers allow only one live handle to each
+/// file, so a handle left behind by a reload or another tab can make the first
+/// attempt fail. Failed attempts register nothing, so retrying is safe.
+async fn open_storage() -> Result<OpfsSAHPoolUtil, JsValue> {
+    const ATTEMPTS: i32 = 8;
+    let mut last_error = String::new();
+    for attempt in 1..=ATTEMPTS {
+        match install::<WasmOsCallback>(&OpfsSAHPoolCfg::default(), true).await {
+            Ok(pool) => return Ok(pool),
+            Err(error) => last_error = error.to_string(),
+        }
+        if attempt < ATTEMPTS {
+            sleep_ms(250 * attempt).await;
+        }
+    }
+    Err(JsValue::from_str(&format!(
+        "MockTest couldn't open your saved data. It may be open in another tab or window. Close the other MockTest tabs, then reload this page. ({last_error})"
+    )))
+}
+
 #[wasm_bindgen]
 pub async fn start() -> Result<(), JsValue> {
     set_once();
-    let pool = install::<WasmOsCallback>(&OpfsSAHPoolCfg::default(), true)
-        .await
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let pool = open_storage().await?;
     let conn = open(DB_NAME).map_err(|error| JsValue::from_str(&error.to_string()))?;
     let now = js_sys::Date::now() as i64;
     seed_samples(&conn, SAMPLES, now).map_err(|error| JsValue::from_str(&error.to_string()))?;

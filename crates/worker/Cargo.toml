@@ -15,7 +15,7 @@ base64.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 js-sys.workspace = true
-web-sys = { version = "0.3", features = ["DedicatedWorkerGlobalScope", "MessageEvent"] }
+web-sys = { version = "0.3", features = ["DedicatedWorkerGlobalScope", "MessageEvent", "WorkerGlobalScope"] }
 console_error_panic_hook.workspace = true
 rusqlite = { version = "0.41.1", default-features = false, features = ["ffi-sqlite-wasm-rs"] }
 sqlite-wasm-rs = { version = "0.6.2", features = ["wasm-bindgen"] }
