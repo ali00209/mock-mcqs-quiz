@@ -256,7 +256,7 @@ pub fn SelectContent(
                             isOpen = true;
 
                             // Lock scrolling
-                            window.ScrollLock.lock();
+                            window.ScrollLock?.lock();
 
                             // Update position and open
                             updatePosition();
@@ -279,7 +279,7 @@ pub fn SelectContent(
                             document.removeEventListener('click', handleClickOutside);
 
                             // Unlock scrolling after animation
-                            window.ScrollLock.unlock(200);
+                            window.ScrollLock?.unlock(200);
                         }};
 
                         const handleClickOutside = (e) => {{

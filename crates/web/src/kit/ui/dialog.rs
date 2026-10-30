@@ -152,7 +152,7 @@ pub fn DialogContent(
 
                         const openDialog = () => {{
                             // Lock scrolling
-                            window.ScrollLock.lock();
+                            window.ScrollLock?.lock();
 
                             dialog.setAttribute('data-state', 'open');
                             backdrop.setAttribute('data-state', 'open');
@@ -167,7 +167,7 @@ pub fn DialogContent(
                             backdrop.style.pointerEvents = 'none';
 
                             // Unlock scrolling after animation
-                            window.ScrollLock.unlock(200);
+                            window.ScrollLock?.unlock(200);
                         }};
 
                         // Open dialog when trigger is clicked

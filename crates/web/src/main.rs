@@ -46,6 +46,7 @@ fn current_page() -> Page {
 
 fn main() {
     console_error_panic_hook::set_once();
+    kit::hooks::use_scroll_lock::init();
     leptos::mount::mount_to_body(App);
 }
 

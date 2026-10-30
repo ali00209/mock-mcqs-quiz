@@ -32,6 +32,8 @@ struct Session {
     now: RwSignal<i64>,
     /// Problem reported by the last action, shown at the top of the page.
     problem: RwSignal<Option<String>>,
+    /// Questions whose answer has been judged in "answer on the go" mode and can no longer be changed.
+    locks: RwSignal<HashMap<String, bool>>,
 }
 
 impl Session {
@@ -58,6 +60,10 @@ impl Session {
     }
 
     fn choose(&self, question_id: &str, kind: QuestionKind, option_id: &str, checked: bool) {
+        // In "answer on the go" mode a judged answer cannot be changed.
+        if self.is_locked(question_id) {
+            return;
+        }
         let current = self.answer(question_id);
         let mut selected: Vec<String> = match kind {
             QuestionKind::Single => {
@@ -84,6 +90,11 @@ impl Session {
         let selected = self.answer(question_id).selected;
         self.save(question_id.to_string(), selected, flagged);
     }
+
+    /// In "answer on the go" mode a judged answer cannot be changed.
+    fn is_locked(&self, question_id: &str) -> bool {
+        self.locks.with(|m| m.get(question_id).copied().unwrap_or(false))
+    }
 }
 
 #[component]
@@ -93,12 +104,14 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
     let index = RwSignal::new(0usize);
     let now = RwSignal::new(ui::now_ms());
     let problem = RwSignal::new(None::<String>);
+    let locks = RwSignal::new(HashMap::<String, bool>::new());
     let session = Session {
         attempt_id: StoredValue::new(id.clone()),
         answers,
         index,
         now,
         problem,
+        locks,
     };
 
     // Opening the attempt restarts its clock, if the user left it paused.
@@ -299,7 +312,7 @@ fn nav_label(session: Session, qid: &str, position: usize) -> String {
 fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
     let label_qid = qid.clone();
     view! {
-        <button
+        <Button
             class=move || {
                 let answer = session.answer(&qid);
                 let mut class = String::from("qbtn");
@@ -314,11 +327,11 @@ fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
                 }
                 class
             }
-            aria-label=move || nav_label(session, &label_qid, position)
-            aria-current=move || if session.index.get() == position { "step" } else { "false" }
+            attr:aria-label=move || nav_label(session, &label_qid, position)
+            attr:aria-current=move || if session.index.get() == position { "step" } else { "false" }
             on:click=move |_| session.index.set(position)>
             {position + 1}
-        </button>
+        </Button>
     }
 }
 
@@ -352,6 +365,15 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
     );
     let explanation = StoredValue::new(q.explanation.clone());
 
+    // In "answer on the go" mode a judged answer locks further changes.
+    Effect::new(move |_: Option<()>| {
+        let chosen = session.answer(&qid.get_value()).selected;
+        let needed = correct_key.with_value(|ids| ids.len());
+        if show_feedback && chosen.len() >= needed {
+            session.locks.update(|m| { m.insert(qid.get_value(), true); });
+        }
+    });
+
     // Built inside the group so each item can read the group's value.
     let option_list = q.options.clone();
     let build_choices = move || -> Vec<AnyView> {
@@ -361,7 +383,7 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
             match kind {
                 QuestionKind::Single => view! {
                     <label class="choice">
-                        <RadioGroupItem value=oid.get_value() />
+                        <RadioGroupItem value=oid.get_value() disabled=Signal::derive(move || session.is_locked(&qid.get_value())) />
                         <span>{text}</span>
                     </label>
                 }
@@ -370,6 +392,7 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
                     <label class="choice">
                         <Checkbox
                             aria_label=text.clone()
+                            disabled=Signal::derive(move || session.is_locked(&qid.get_value()))
                             checked=Signal::derive(move || session.answer(&qid.get_value()).selected.contains(&oid.get_value()))
                             on_checked_change=Callback::new(move |v: bool| session.choose(&qid.get_value(), kind, &oid.get_value(), v))/>
                         <span>{text}</span>

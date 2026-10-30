@@ -619,6 +619,32 @@ d) Yellow";
 fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
     let text = RwSignal::new(String::new());
     let preview = RwSignal::new(None::<Result<Vec<Question>, Vec<String>>>);
+    let show_text = RwSignal::new(false);
+    let open_text = move |_: leptos::ev::MouseEvent| {
+        crate::kit::hooks::use_scroll_lock::lock();
+        show_text.set(true);
+    };
+    let close_text = move |_: leptos::ev::MouseEvent| {
+        crate::kit::hooks::use_scroll_lock::unlock(0);
+        show_text.set(false);
+    };
+    let close_now = move || {
+        crate::kit::hooks::use_scroll_lock::unlock(0);
+        show_text.set(false);
+    };
+
+    // Focus the paste area when the dialog opens.
+    Effect::new(move |_| {
+        if show_text.get() {
+            let element = ui::win()
+                .document()
+                .and_then(|d| d.get_element_by_id("text-dialog-textarea"))
+                .and_then(|el| el.dyn_into::<web_sys::HtmlElement>().ok());
+            if let Some(element) = element {
+                let _ = element.focus();
+            }
+        }
+    });
 
     // `replace` swaps out the existing questions; otherwise the new ones go on the end.
     let apply = move |replace: bool| {
@@ -665,17 +691,40 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                 <summary>"Show the format"</summary>
                 <pre class="format">{FORMAT_HELP}</pre>
             </details>
-            <label class="field">
-                <span>"Questions to import"</span>
-                <Textarea rows=8u32 placeholder="Paste your questions here" bind_value=text/>
-            </label>
             <div class="actions">
-                <Button variant=ButtonVariant::Outline on:click=move |_| preview.set(Some(parse_quiz_text(&text.get_untracked())))>
-                    "Check text"
+                <Button variant=ButtonVariant::Outline on:click=move |ev: leptos::ev::MouseEvent| open_text(ev)>
+                    "Add questions from text"
                 </Button>
             </div>
-            {move || {
-                preview.get().map(|result| match result {
+        </section>
+
+        <Show when=move || show_text.get()>
+            <div class="fixed inset-0 z-[60] bg-black/50" aria-hidden="true" on:click=move |ev: leptos::ev::MouseEvent| close_text(ev)></div>
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="text-dialog-title"
+                aria-describedby="text-dialog-description"
+                class="fixed top-1/2 left-1/2 z-[70] flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-md border bg-card p-6 text-card-foreground shadow-lg"
+                on:keydown=move |ev: leptos::ev::KeyboardEvent| {
+                    if ev.key() == "Escape" {
+                        close_now();
+                    }
+                }
+            >
+                <h2 id="text-dialog-title" class="text-lg leading-none font-semibold">"Add questions from text"</h2>
+                <p id="text-dialog-description" class="text-sm text-muted-foreground">
+                    "Paste questions and answers. Put * after each correct option. The quiz title and settings are set in the fields above."
+                </p>
+                <Textarea
+                    id="text-dialog-textarea"
+                    rows=12u32
+                    class="bg-[#ffffff] min-h-72"
+                    placeholder="Paste your questions here"
+                    bind_value=text
+                />
+                {move || {
+                    preview.get().map(|result| match result {
                     Err(errors) => view! {
                         <div class="panel error" role="alert">
                             <strong>"Fix these, then check again:"</strong>
@@ -703,6 +752,11 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                     }
                 })
             }}
-        </section>
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant=ButtonVariant::Outline on:click=move |ev: leptos::ev::MouseEvent| close_text(ev)>"Close"</Button>
+                <Button variant=ButtonVariant::Default on:click=move |_| preview.set(Some(parse_quiz_text(&text.get_untracked())))>"Check text"</Button>
+            </div>
+            </div>
+        </Show>
     }
 }

@@ -447,7 +447,7 @@ pub fn DropdownMenuContent(
                             dropdown.style.visibility = 'visible';
 
                             // Lock all scrollable elements
-                            window.ScrollLock.lock();
+                            window.ScrollLock?.lock();
 
                             // Close on click outside
                             setTimeout(() => {{
@@ -462,7 +462,7 @@ pub fn DropdownMenuContent(
                             document.removeEventListener('click', handleClickOutside);
 
                             // Unlock scroll after animation (200ms delay)
-                            window.ScrollLock.unlock(200);
+                            window.ScrollLock?.unlock(200);
                         }};
 
                         const handleClickOutside = (e) => {{
