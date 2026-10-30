@@ -29,9 +29,9 @@ pub fn CarouselContent(children: Children, #[prop(optional, into)] class: String
 
 /// A slide. Outside a `Carousel` every item is shown, so one view serves both modes.
 #[component]
-pub fn CarouselItem(position: usize, children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn CarouselItem(#[prop(into)] position: Signal<usize>, children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
     let ctx = use_context::<CarouselContext>();
-    let is_hidden = move || ctx.map(|c| c.index.get() != position).unwrap_or(false);
+    let is_hidden = move || ctx.map(|c| c.index.get() != position.get()).unwrap_or(false);
     view! {
         <div
             data-name="CarouselItem"
@@ -61,14 +61,14 @@ pub fn CarouselPrevious(index: RwSignal<usize>, #[prop(optional, into)] class: S
 }
 
 #[component]
-pub fn CarouselNext(index: RwSignal<usize>, count: usize, #[prop(optional, into)] class: String) -> impl IntoView {
+pub fn CarouselNext(index: RwSignal<usize>, #[prop(into)] count: Signal<usize>, #[prop(optional, into)] class: String) -> impl IntoView {
     view! {
         <Button
             variant=ButtonVariant::Outline
             class=class
-            attr:aria-disabled=move || (index.get() + 1 >= count).then_some("true")
+            attr:aria-disabled=move || (index.get() + 1 >= count.get()).then_some("true")
             on:click=move |_| {
-                if index.get() + 1 < count {
+                if index.get() + 1 < count.get() {
                     index.update(|i| *i += 1);
                 }
             }

@@ -12,6 +12,7 @@ use crate::icons;
 use crate::kit::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::input::{Input, InputType};
+use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious};
 use crate::kit::ui::select::Select;
 use crate::kit::ui::switch::Switch;
 use crate::kit::ui::textarea::Textarea;
@@ -118,6 +119,15 @@ enum AfterSave {
 #[component]
 fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     let draft = RwSignal::new(quiz.clone());
+    // The question shown in the carousel. Kept inside the list as questions are added or removed.
+    let question_index = RwSignal::new(0usize);
+    Effect::new(move |_| {
+        let count = draft.with(|d| d.questions.len());
+        if question_index.get_untracked() >= count {
+            question_index.set(count.saturating_sub(1));
+        }
+    });
+    let question_count = Signal::derive(move || draft.with(|d| d.questions.len()));
     let title = synced(draft, quiz.title.clone(), |q, v| q.title = v.to_string());
     let description = synced(draft, quiz.description.clone(), |q, v| q.description = v.to_string());
     let category = synced(draft, quiz.category.clone().unwrap_or_default(), |q, v| {
@@ -329,28 +339,45 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                     on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.one_at_a_time = v))/>
                 <span>"Show one question at a time"</span>
             </label>
-            <label class="mb-3.5 flex flex-col gap-1.5">
+            <div class="mb-3.5 flex flex-col gap-1.5">
                 <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Answer feedback"</span>
                 <Select
                     aria_label="Answer feedback"
                     value=feedback
                     options=vec![("after_submit", "Show answers after submitting"), ("on_the_go", "Show each answer as I go")]/>
-            </label>
+            </div>
         </section>
 
         {text_import(ui, draft)}
 
         <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Questions"</h2>
-            <For
-                each=move || draft.get().questions
-                key=|q| q.id.clone()
-                children=move |q: Question| question_editor(draft, q)
-            />
+            <Carousel index=question_index class="flex flex-col gap-4">
+                <CarouselContent>
+                    <For
+                        each=move || draft.get().questions
+                        key=|q| q.id.clone()
+                        children=move |q: Question| {
+                            let id = q.id.clone();
+                            let position = Signal::derive(move || {
+                                draft.with(|d| d.questions.iter().position(|x| x.id == id).unwrap_or(0))
+                            });
+                            view! { <CarouselItem position=position>{question_editor(draft, q, question_index)}</CarouselItem> }
+                        }
+                    />
+                </CarouselContent>
+                <div class="flex flex-wrap items-center gap-2">
+                    <CarouselPrevious index=question_index/>
+                    <CarouselNext index=question_index count=question_count/>
+                </div>
+            </Carousel>
             <Button
                 variant=ButtonVariant::Outline
                 attr:disabled={move || draft.with(|q| q.questions.len() >= MAX_QUESTIONS)}
-                on:click=move |_| draft.update(|q| q.questions.push(Question::blank()))>
+                on:click=move |_| {
+                    draft.update(|q| q.questions.push(Question::blank()));
+                    question_index.set(draft.with(|q| q.questions.len()).saturating_sub(1));
+                }>
                 "Add question"
             </Button>
             {move || {
@@ -381,7 +408,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     }
 }
 
-fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
+fn question_editor(draft: RwSignal<Quiz>, q: Question, question_index: RwSignal<usize>) -> impl IntoView {
     let qid = StoredValue::new(q.id.clone());
     let index = move || draft.with(|d| d.questions.iter().position(|x| x.id == qid.get_value()).unwrap_or(0));
     let count = move || draft.with(|d| d.questions.len());
@@ -407,10 +434,16 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
                 <div class="flex flex-wrap items-center gap-2">
                     <Button variant=ButtonVariant::Outline attr:disabled=move || index() == 0
                         attr:aria-label=move || format!("Move question {} up", index() + 1)
-                        on:click=move |_| move_question(draft, qid.get_value(), -1)>"Up"</Button>
+                        on:click=move |_| {
+                            move_question(draft, qid.get_value(), -1);
+                            question_index.update(|i| *i = i.saturating_sub(1));
+                        }>"Up"</Button>
                     <Button variant=ButtonVariant::Outline attr:disabled={move || index() + 1 >= count()}
                         attr:aria-label=move || format!("Move question {} down", index() + 1)
-                        on:click=move |_| move_question(draft, qid.get_value(), 1)>"Down"</Button>
+                        on:click=move |_| {
+                            move_question(draft, qid.get_value(), 1);
+                            question_index.update(|i| *i += 1);
+                        }>"Down"</Button>
                     <Button variant=ButtonVariant::Destructive
                         attr:aria-label=move || format!("Remove question {}", index() + 1)
                         on:click=move |_| draft.update(|d| d.questions.retain(|x| x.id != qid.get_value()))>
@@ -422,14 +455,14 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
                 <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Prompt"</span>
                 <Textarea rows=2u32 bind_value=prompt/>
             </label>
-            <label class="mb-3.5 flex flex-col gap-1.5">
+            <div class="mb-3.5 flex flex-col gap-1.5">
                 <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Type"</span>
                 <Select
                     aria_label="Question type"
                     value=kind
                     options=vec![("single", "Single answer"), ("multi", "Multiple answers")]
                     on_change=Callback::new(move |value: String| set_kind(draft, &qid.get_value(), &value))/>
-            </label>
+            </div>
             <div >
                 <For
                     each=move || question_options(draft, &qid.get_value())
