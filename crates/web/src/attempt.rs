@@ -285,7 +285,7 @@ fn attempt_view(
             view! { <div>{cards}</div> }.into_any()
         }}
         <div class="flex flex-wrap items-center gap-2 justify-between mt-3">
-            {one.then(|| {
+            {(one && total >= 2).then(|| {
                 view! {
                     <div class="flex flex-wrap items-center gap-2">
                         <CarouselFirst index=session.index/>

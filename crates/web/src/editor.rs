@@ -394,12 +394,18 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                         }
                     />
                 </CarouselContent>
-                <div class="flex flex-wrap items-center gap-2">
-                    <CarouselFirst index=question_index/>
-                    <CarouselPrevious index=question_index/>
-                    <CarouselNext index=question_index count=question_count/>
-                    <CarouselLast index=question_index count=question_count/>
-                </div>
+                {move || {
+                    (question_count.get() >= 2).then(|| {
+                        view! {
+                            <div class="flex flex-wrap items-center gap-2">
+                                <CarouselFirst index=question_index/>
+                                <CarouselPrevious index=question_index/>
+                                <CarouselNext index=question_index count=question_count/>
+                                <CarouselLast index=question_index count=question_count/>
+                            </div>
+                        }
+                    })
+                }}
             </Carousel>
             <Button
                 variant=ButtonVariant::Outline
