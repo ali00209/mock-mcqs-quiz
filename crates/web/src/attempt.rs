@@ -352,10 +352,10 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
     );
     let explanation = StoredValue::new(q.explanation.clone());
 
-    let choices: Vec<_> = q
-        .options
-        .into_iter()
-        .map(|o| {
+    // Built inside the group so each item can read the group's value.
+    let option_list = q.options.clone();
+    let build_choices = move || -> Vec<AnyView> {
+        option_list.clone().into_iter().map(|o| {
             let oid = StoredValue::new(o.id.clone());
             let text = o.text;
             match kind {
@@ -378,10 +378,11 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
                 .into_any(),
             }
         })
-        .collect();
+        .collect::<Vec<AnyView>>()
+    };
     let options = match kind {
-        QuestionKind::Single => view! { <RadioGroup class="choices" value=picked>{choices}</RadioGroup> }.into_any(),
-        QuestionKind::Multi => view! { <div class="choices">{choices}</div> }.into_any(),
+        QuestionKind::Single => view! { <RadioGroup class="choices" value=picked>{build_choices()}</RadioGroup> }.into_any(),
+        QuestionKind::Multi => view! { <div class="choices">{build_choices()}</div> }.into_any(),
     };
 
     // Shown once the question has an answer, when the quiz marks answers as they go.
