@@ -195,7 +195,7 @@ pub fn ConfirmDialog(ui: Ui) -> impl IntoView {
             >
                 <h2 id="confirm-title" class="text-lg leading-none font-semibold">{title}</h2>
                 <p id="confirm-message" class="text-sm text-muted-foreground">{message}</p>
-                <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <div class="flex flex-wrap justify-end gap-2">
                     <Button variant=ButtonVariant::Outline attr:id="confirm-cancel" on:click=move |_| choose(Pick::Cancel)>
                         {cancel_label}
                     </Button>
