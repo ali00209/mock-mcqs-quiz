@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use base64::Engine;
 use console_error_panic_hook::set_once;
-use mocktest_db::{dispatch, open, seed_samples};
+use mocktest_db::{dispatch, open, open_in_memory, seed_samples};
 use mocktest_domain::{Command, Request, Response};
 use rusqlite::Connection;
 use serde_json::Value;
@@ -46,7 +46,7 @@ fn state() -> Rc<RefCell<WorkerState>> {
 }
 
 fn unavailable() -> String {
-    "Database storage is unavailable.".to_string()
+    "Backup and restore need saved storage, which this browser doesn't provide.".to_string()
 }
 
 fn post_message(state: &Rc<RefCell<WorkerState>>, message: &str) {
@@ -225,7 +225,7 @@ async fn sleep_ms(ms: i32) {
 /// file, so a handle left behind by a reload or another tab can make the first
 /// attempt fail. Failed attempts register nothing, so retrying is safe.
 async fn open_storage() -> Result<OpfsSAHPoolUtil, JsValue> {
-    const ATTEMPTS: i32 = 8;
+    const ATTEMPTS: i32 = 4;
     let mut last_error = String::new();
     for attempt in 1..=ATTEMPTS {
         match install::<WasmOsCallback>(&OpfsSAHPoolCfg::default(), true).await {
@@ -241,11 +241,21 @@ async fn open_storage() -> Result<OpfsSAHPoolUtil, JsValue> {
     )))
 }
 
+/// Opens the app's database. Returns "saved" when the data is kept in the browser,
+/// or "temporary" when the browser refuses that storage and the app runs in memory.
 #[wasm_bindgen]
-pub async fn start() -> Result<(), JsValue> {
+pub async fn start() -> Result<JsValue, JsValue> {
     set_once();
-    let pool = open_storage().await?;
-    let conn = open(DB_NAME).map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let (pool, conn, mode) = match open_storage().await {
+        Ok(pool) => {
+            let conn = open(DB_NAME).map_err(|error| JsValue::from_str(&error.to_string()))?;
+            (Some(pool), conn, "saved")
+        }
+        Err(_) => {
+            let conn = open_in_memory().map_err(|error| JsValue::from_str(&error.to_string()))?;
+            (None, conn, "temporary")
+        }
+    };
     let now = js_sys::Date::now() as i64;
     seed_samples(&conn, SAMPLES, now).map_err(|error| JsValue::from_str(&error.to_string()))?;
 
@@ -253,7 +263,7 @@ pub async fn start() -> Result<(), JsValue> {
     {
         let mut state_mut = state_rc.borrow_mut();
         state_mut.connection = Some(conn);
-        state_mut.pool = Some(pool);
+        state_mut.pool = pool;
     }
 
     let scope = state_rc.borrow().scope.clone();
@@ -268,5 +278,5 @@ pub async fn start() -> Result<(), JsValue> {
     scope.set_onmessage(Some(handler_fn));
     // The handler must live as long as the worker.
     handler.forget();
-    Ok(())
+    Ok(JsValue::from_str(mode))
 }
