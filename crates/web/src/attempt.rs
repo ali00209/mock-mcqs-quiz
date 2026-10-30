@@ -170,6 +170,14 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
         }
     });
 
+    // Attempt errors show as toasts instead of a panel.
+    Effect::new(move |_| {
+        if let Some(message) = session.problem.get() {
+            ui.notify(message, true);
+            session.problem.set(None);
+        }
+    });
+
     let submit = move || {
         let attempt_id = session.attempt_id.get_value();
         let ids: Vec<String> = state.with_untracked(|s| match s {
@@ -237,11 +245,6 @@ fn attempt_view(
         .collect();
 
     view! {
-        {move || {
-            session.problem.get().map(|message| {
-                view! { <div class="panel error" role="alert">{message}</div> }
-            })
-        }}
         <div class="attempt-head">
             <h1>{title}</h1>
             <div class="timer" role="timer">{move || match deadline {

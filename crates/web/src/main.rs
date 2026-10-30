@@ -12,6 +12,8 @@ use mocktest_domain::{
 };
 use ui::Ui;
 use kit::ui::badge::{Badge, BadgeVariant};
+use kit::ui::toast_custom::_context::ToasterContext;
+use kit::ui::toast_custom::toaster::Toaster;
 use kit::ui::dropdown_menu::{DropdownMenu, DropdownMenuAction, DropdownMenuActionVariant, DropdownMenuContent, DropdownMenuTrigger};
 use kit::ui::button::{Button, ButtonVariant};
 use kit::ui::card::Card;
@@ -49,7 +51,9 @@ fn main() {
 
 #[component]
 fn App() -> impl IntoView {
-    let ui = Ui::new();
+    let toaster = ToasterContext::default();
+    provide_context(toaster.clone());
+    let ui = Ui::new(toaster);
     let page = RwSignal::new(current_page());
 
     let on_hash = wasm_bindgen::closure::Closure::wrap(Box::new(move || page.set(current_page()))
@@ -75,6 +79,7 @@ fn App() -> impl IntoView {
 
     view! {
         <ui::ConfirmDialog ui=ui/>
+        <Toaster/>
         // Decorative repeats of the top links for wide screens; hidden from assistive tech.
         <nav class="side-tabs" aria-hidden="true">
             <a href="#/" tabindex="-1" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
@@ -224,7 +229,10 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
 fn new_quiz(ui: Ui) {
     spawn_local(async move {
         match api::create_quiz().await {
-            Ok(quiz) => ui::go(&format!("#/edit/{}", quiz.id)),
+            Ok(quiz) => {
+                ui.drafts.update(|d| d.push(quiz.id.clone()));
+                ui::go(&format!("#/edit/{}", quiz.id));
+            }
             Err(error) => ui.notify(error, true),
         }
     });

@@ -5,14 +5,19 @@ use leptos::prelude::LocalStorage;
 use crate::kit::ui::button::{Button, ButtonVariant};
 use mocktest_domain::AttemptStatus;
 use wasm_bindgen::{JsCast, prelude::*};
+use crate::kit::ui::toast_custom::_builder::ToastBuilder;
+use crate::kit::ui::toast_custom::_context::ToasterContext;
+use crate::kit::ui::toast_custom::_data::{ToastLevel, ToastPosition};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Blob, BlobPropertyBag, Event, HtmlAnchorElement, HtmlInputElement, Url};
 
 /// Signals every page can use. Copy, so it can be passed into any handler.
 #[derive(Clone, Copy)]
 pub struct Ui {
-    /// Banner message: (text, is_error).
-    pub notice: RwSignal<Option<(String, bool)>>,
+    /// Shows toast messages. Provided once at the app root.
+    pub toaster: StoredValue<ToasterContext>,
+    /// Ids of quizzes made in the editor that have not been saved yet.
+    pub drafts: RwSignal<Vec<String>>,
     /// Bumped to make the library reload its data.
     pub version: RwSignal<u32>,
     /// The yes/no question currently shown in the app's dialog, if any.
@@ -29,16 +34,30 @@ pub struct Confirm {
 }
 
 impl Ui {
-    pub fn new() -> Self {
+    pub fn new(toaster: ToasterContext) -> Self {
         Self {
-            notice: RwSignal::new(None),
+            toaster: StoredValue::new(toaster),
+            drafts: RwSignal::new(Vec::new()),
             version: RwSignal::new(0),
             confirm: RwSignal::new_local(None),
         }
     }
 
+    /// Shows a toast: an error when `error` is true, otherwise a success message.
     pub fn notify(self, message: impl Into<String>, error: bool) {
-        self.notice.set(Some((message.into(), error)));
+        let level = if error { ToastLevel::Error } else { ToastLevel::Success };
+        self.toast(message.into(), level);
+    }
+
+    /// Shows an information toast.
+    pub fn info(self, message: impl Into<String>) {
+        self.toast(message.into(), ToastLevel::Info);
+    }
+
+    fn toast(self, message: String, level: ToastLevel) {
+        self.toaster.with_value(|toaster| {
+            toaster.toast(ToastBuilder::new(message).with_level(level).with_position(ToastPosition::BottomRight));
+        });
     }
 
     pub fn reload(self) {
