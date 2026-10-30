@@ -13,7 +13,9 @@ use crate::kit::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::input::{Input, InputType};
 use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselFirst, CarouselItem, CarouselLast, CarouselNext, CarouselPrevious};
+use crate::kit::hooks::use_stepper::StepperContext;
 use crate::kit::ui::select::Select;
+use crate::kit::ui::stepper::{Stepper, StepperIndicator, StepperItem, StepperTitle, StepperTrigger};
 use crate::kit::ui::switch::Switch;
 use crate::kit::ui::textarea::Textarea;
 use crate::ui::{self, LeaveGuard, Ui};
@@ -288,6 +290,28 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4">
             <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Edit quiz"</h1>
         </div>
+        <Stepper total_steps=3>
+            <div class="mb-6 flex w-full gap-2">
+                <StepperItem step=0>
+                    <StepperTrigger class="w-full">
+                        <StepperIndicator/>
+                        <StepperTitle>"Details"</StepperTitle>
+                    </StepperTrigger>
+                </StepperItem>
+                <StepperItem step=1>
+                    <StepperTrigger class="w-full">
+                        <StepperIndicator/>
+                        <StepperTitle>"Settings"</StepperTitle>
+                    </StepperTrigger>
+                </StepperItem>
+                <StepperItem step=2>
+                    <StepperTrigger class="w-full">
+                        <StepperIndicator/>
+                        <StepperTitle>"Questions"</StepperTitle>
+                    </StepperTrigger>
+                </StepperItem>
+            </div>
+            <FormStep step=0>
         <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Details"</h2>
             <label class="mb-3.5 flex flex-col gap-1.5">
@@ -307,6 +331,8 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 <Input bind_value=tags_text/>
             </label>
         </section>
+            </FormStep>
+            <FormStep step=1>
 
         <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Settings"</h2>
@@ -347,8 +373,10 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                     options=vec![("after_submit", "Show answers after submitting"), ("on_the_go", "Show each answer as I go")]/>
             </div>
         </section>
+            </FormStep>
+            <FormStep step=2>
 
-        {text_import(ui, draft)}
+            {text_import(ui, draft)}
 
         <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Questions"</h2>
@@ -388,6 +416,9 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 })
             }}
         </section>
+            </FormStep>
+            <StepNav/>
+        </Stepper>
 
         {move || {
             (!issues.get().is_empty()).then(|| {
@@ -785,5 +816,34 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
             </div>
             </div>
         </Show>
+    }
+}
+
+/// One step of the edit form. Steps that are not current are hidden, not removed, so typing is kept.
+#[component]
+fn FormStep(step: usize, children: Children) -> impl IntoView {
+    let ctx = expect_context::<StepperContext>();
+    view! {
+        <div class=move || if ctx.current_index.get() == step { "w-full basis-full" } else { "hidden" }>
+            {children()}
+        </div>
+    }
+}
+
+/// Back and Next under the steps.
+#[component]
+fn StepNav() -> impl IntoView {
+    let ctx = expect_context::<StepperContext>();
+    let names = ["Details", "Settings", "Questions"];
+    view! {
+        <div class="mb-7 flex w-full flex-wrap items-center justify-between gap-2">
+            <Button variant=ButtonVariant::Outline attr:aria-disabled=move || (!ctx.can_go_prev.get()).then_some("true")
+                on:click=move |_| ctx.go_prev.run(())>"Back"</Button>
+            <span class="text-[13px] text-muted-foreground">
+                {move || format!("Step {} of {}: {}", ctx.current_index.get() + 1, names.len(), names[ctx.current_index.get().min(names.len() - 1)])}
+            </span>
+            <Button variant=ButtonVariant::Outline attr:aria-disabled=move || (!ctx.can_go_next.get()).then_some("true")
+                on:click=move |_| ctx.go_next.run(())>"Next"</Button>
+        </div>
     }
 }
