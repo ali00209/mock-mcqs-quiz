@@ -130,6 +130,12 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         }
     });
     let question_count = Signal::derive(move || draft.with(|d| d.questions.len()));
+    // The number box shows the question on screen; typing a valid number moves to it.
+    let goto_text = RwSignal::new(String::from("1"));
+    Effect::new(move |_| {
+        let shown = question_index.get() + 1;
+        goto_text.set(shown.to_string());
+    });
     let title = synced(draft, quiz.title.clone(), |q, v| q.title = v.to_string());
     let description = synced(draft, quiz.description.clone(), |q, v| q.description = v.to_string());
     let category = synced(draft, quiz.category.clone().unwrap_or_default(), |q, v| {
@@ -338,6 +344,40 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
 
         <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Questions"</h2>
+            <div class="mb-4 flex flex-wrap items-center gap-3">
+                <label class="flex items-center gap-2">
+                    <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Go to question"</span>
+                    <input
+                        type="number"
+                        inputmode="numeric"
+                        min="1"
+                        max=move || question_count.get().max(1).to_string()
+                        disabled=move || question_count.get() == 0
+                        class="h-9 w-20 border-2 border-ink bg-field-bg px-3 font-mono text-field-ink disabled:opacity-50"
+                        prop:value=move || goto_text.get()
+                        on:input=move |ev| {
+                            let text = event_target_value(&ev);
+                            goto_text.set(text.clone());
+                            if let Ok(n) = text.trim().parse::<usize>() {
+                                if n >= 1 && n <= question_count.get_untracked() {
+                                    question_index.set(n - 1);
+                                }
+                            }
+                        }
+                    />
+                </label>
+                <span class="text-sm text-muted-foreground">
+                    {move || {
+                        let total = question_count.get();
+                        let typed = goto_text.get().trim().parse::<usize>().ok();
+                        match (total, typed) {
+                            (0, _) => "No questions yet".to_string(),
+                            (n, Some(v)) if v < 1 || v > n => format!("Enter 1 to {n}"),
+                            (n, _) => format!("of {n} question{}", if n == 1 { "" } else { "s" }),
+                        }
+                    }}
+                </span>
+            </div>
             <Carousel index=question_index count=question_count class="flex flex-col gap-4">
                 <CarouselContent>
                     <For
