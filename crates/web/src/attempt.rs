@@ -299,7 +299,7 @@ fn nav_label(session: Session, qid: &str, position: usize) -> String {
 fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
     let label_qid = qid.clone();
     view! {
-        <button
+        <Button
             class=move || {
                 let answer = session.answer(&qid);
                 let mut class = String::from("qbtn");
@@ -314,11 +314,11 @@ fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
                 }
                 class
             }
-            aria-label=move || nav_label(session, &label_qid, position)
-            aria-current=move || if session.index.get() == position { "step" } else { "false" }
+            attr:aria-label=move || nav_label(session, &label_qid, position)
+            attr:aria-current=move || if session.index.get() == position { "step" } else { "false" }
             on:click=move |_| session.index.set(position)>
             {position + 1}
-        </button>
+        </Button>
     }
 }
 

@@ -111,7 +111,7 @@ pub fn CommandDialog(children: ChildrenFn, #[prop(into, optional)] class: String
                     const currentBackdrop = document.querySelector('#{backdrop_id}');
                     if (!currentDialog || !currentBackdrop) return;
 
-                    window.ScrollLock.lock();
+                    window.ScrollLock?.lock();
                     currentDialog.setAttribute('data-state', 'open');
                     currentBackdrop.setAttribute('data-state', 'open');
                     currentDialog.style.pointerEvents = 'auto';
@@ -131,7 +131,7 @@ pub fn CommandDialog(children: ChildrenFn, #[prop(into, optional)] class: String
                     currentBackdrop.setAttribute('data-state', 'closed');
                     currentDialog.style.pointerEvents = 'none';
                     currentBackdrop.style.pointerEvents = 'none';
-                    window.ScrollLock.unlock(100);
+                    window.ScrollLock?.unlock(100);
                 }};
 
                 // Global keyboard listener for Cmd+K, Ctrl+K, or /
@@ -141,7 +141,7 @@ pub fn CommandDialog(children: ChildrenFn, #[prop(into, optional)] class: String
                     if (!currentDialog || !currentBackdrop) return;
 
                     const openDialog = () => {{
-                        window.ScrollLock.lock();
+                        window.ScrollLock?.lock();
                         currentDialog.setAttribute('data-state', 'open');
                         currentBackdrop.setAttribute('data-state', 'open');
                         currentDialog.style.pointerEvents = 'auto';
@@ -165,7 +165,7 @@ pub fn CommandDialog(children: ChildrenFn, #[prop(into, optional)] class: String
                         currentBackdrop.setAttribute('data-state', 'closed');
                         currentDialog.style.pointerEvents = 'none';
                         currentBackdrop.style.pointerEvents = 'none';
-                        window.ScrollLock.unlock(100);
+                        window.ScrollLock?.unlock(100);
                     }}
                 }};
 

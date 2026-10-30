@@ -157,7 +157,7 @@ pub fn SheetContent(
 
                         const openSheet = () => {{
                             // Lock scrolling
-                            window.ScrollLock.lock();
+                            window.ScrollLock?.lock();
 
                             sheet.setAttribute('data-state', 'open');
                             backdrop.setAttribute('data-state', 'open');
@@ -185,7 +185,7 @@ pub fn SheetContent(
                             else if (direction === 'Bottom') sheet.classList.add('translate-y-full');
 
                             // Unlock scrolling after animation
-                            window.ScrollLock.unlock(300);
+                            window.ScrollLock?.unlock(300);
                         }};
 
                         // Open sheet when trigger is clicked

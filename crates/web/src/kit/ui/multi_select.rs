@@ -247,7 +247,7 @@ pub fn MultiSelectContent(children: Children, #[prop(optional, into)] class: Str
                             isOpen = true;
 
                             // Lock all scrollable elements
-                            window.ScrollLock.lock();
+                            window.ScrollLock?.lock();
 
                             multiSelect.setAttribute('data-state', 'open');
                             multiSelect.style.pointerEvents = 'auto';
@@ -272,7 +272,7 @@ pub fn MultiSelectContent(children: Children, #[prop(optional, into)] class: Str
                             document.removeEventListener('click', handleClickOutside);
 
                             // Unlock scroll after animation (200ms delay)
-                            window.ScrollLock.unlock(200);
+                            window.ScrollLock?.unlock(200);
                         }};
 
                         const handleClickOutside = (e) => {{
