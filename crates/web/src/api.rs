@@ -19,6 +19,8 @@ thread_local! {
     static READY: RefCell<Option<Promise>> = const { RefCell::new(None) };
     static PENDING: RefCell<HashMap<u64, (Function, Function)>> = RefCell::new(HashMap::new());
     static NEXT_ID: Cell<u64> = const { Cell::new(1) };
+    /// "saved" or "temporary", as the worker reported when it started.
+    static STORAGE_MODE: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
 fn js_err(value: JsValue) -> String {
@@ -74,7 +76,7 @@ fn spawn_worker() -> Result<Worker, JsValue> {
     let script = format!(
         "import init, {{ start }} from \"{base}worker/mocktest_worker.js\";\n\
          init().then(() => start()).then(\n\
-           () => postMessage(JSON.stringify({{ id: {READY_ID}, ok: true, data: null }})),\n\
+           (mode) => postMessage(JSON.stringify({{ id: {READY_ID}, ok: true, data: {{ storage: mode }} }})),\n\
            (e) => postMessage(JSON.stringify({{ id: {READY_ID}, ok: false, error: String(e) }})),\n\
          );\n"
     );
@@ -114,6 +116,8 @@ async fn ready() -> Result<(), String> {
     let text = JsFuture::from(promise).await.map_err(js_err)?.as_string().unwrap_or_default();
     let reply: Response = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     if reply.ok {
+        let storage = reply.data.as_ref().and_then(|d| d["storage"].as_str()).map(str::to_string);
+        STORAGE_MODE.with(|mode| *mode.borrow_mut() = storage);
         Ok(())
     } else {
         Err(reply.error.unwrap_or_else(|| "The database could not start.".to_string()))
@@ -150,6 +154,14 @@ async fn call(command: Command) -> Result<serde_json::Value, String> {
 async fn typed<T: DeserializeOwned>(command: Command) -> Result<T, String> {
     let value = call(command).await?;
     serde_json::from_value(value).map_err(|e| e.to_string())
+}
+
+/// True when the browser couldn't keep saved data, so nothing survives a page reload.
+pub async fn storage_is_temporary() -> bool {
+    if ensure_worker().is_err() || ready().await.is_err() {
+        return false;
+    }
+    STORAGE_MODE.with(|mode| mode.borrow().as_deref() == Some("temporary"))
 }
 
 pub async fn bootstrap() -> Result<BootstrapData, String> {

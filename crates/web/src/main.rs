@@ -55,6 +55,8 @@ fn App() -> impl IntoView {
     provide_context(toaster.clone());
     let ui = Ui::new(toaster);
     let page = RwSignal::new(current_page());
+    let temporary = RwSignal::new(false);
+    spawn_local(async move { temporary.set(api::storage_is_temporary().await) });
 
     let on_hash = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
         if ui::take_bypass() {
@@ -97,6 +99,18 @@ fn App() -> impl IntoView {
             <a href="#/data" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
         </nav>
         <main class="container">
+            {move || {
+                temporary.get().then(|| {
+                    view! {
+                        <section class="panel" role="status">
+                            <h2>"Progress is not kept in this browser"</h2>
+                            <p class="muted">
+                                "This browser can't save data between visits. Quizzes, answers and history last only until you close this page. Use Chrome, Edge or another browser to keep them."
+                            </p>
+                        </section>
+                    }
+                })
+            }}
             {move || match page.get() {
                 Page::Library => view! { <Library ui=ui/> }.into_any(),
                 Page::History => view! { <History ui=ui/> }.into_any(),
