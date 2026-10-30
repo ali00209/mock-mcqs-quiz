@@ -1,11 +1,21 @@
 // Quiz editor. Edits a local copy (`draft`) and saves it through the worker,
 // which runs the same validation rules as the domain crate.
+use leptos::ev::Event;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use mocktest_domain::{
     AnswerFeedback, AnswerOption, MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, Question, QuestionKind,
     Quiz, QuizSource, parse_quiz_text,
 };
+
+use crate::api;
+use crate::icons;
+use crate::kit::ui::button::{Button, ButtonSize, ButtonVariant};
+use crate::kit::ui::checkbox::Checkbox;
+use crate::kit::ui::input::{Input, InputType};
+use crate::kit::ui::select_native::SelectNative;
+use crate::kit::ui::textarea::Textarea;
+use crate::ui::{self, Ui};
 
 fn feedback_value(feedback: AnswerFeedback) -> &'static str {
     match feedback {
@@ -22,10 +32,23 @@ fn feedback_from_value(value: &str) -> AnswerFeedback {
     }
 }
 
-use crate::api;
-use crate::icons;
-use crate::ui::{self, Ui};
-use crate::kit::ui::button::{Button, ButtonVariant};
+/// A text signal whose changes are written into the draft by `apply`.
+/// The kit's inputs bind to signals, so each field keeps one of these.
+fn synced(
+    draft: RwSignal<Quiz>,
+    initial: String,
+    apply: impl Fn(&mut Quiz, &str) + 'static,
+) -> RwSignal<String> {
+    let local = RwSignal::new(initial);
+    Effect::new(move |first: Option<()>| {
+        let value = local.get();
+        // The first run only reads the initial value; later runs write it through.
+        if first.is_some() {
+            draft.update(|quiz| apply(quiz, &value));
+        }
+    });
+    local
+}
 
 #[component]
 pub fn Editor(ui: Ui, id: String) -> impl IntoView {
@@ -83,6 +106,14 @@ fn parse_percent(text: &str) -> Option<u8> {
 #[component]
 fn EditForm(quiz: Quiz) -> impl IntoView {
     let draft = RwSignal::new(quiz.clone());
+    let title = synced(draft, quiz.title.clone(), |q, v| q.title = v.to_string());
+    let description = synced(draft, quiz.description.clone(), |q, v| q.description = v.to_string());
+    let category = synced(draft, quiz.category.clone().unwrap_or_default(), |q, v| {
+        q.category = Some(v.to_string())
+    });
+    let feedback = synced(draft, feedback_value(quiz.settings.feedback).to_string(), |q, v| {
+        q.settings.feedback = feedback_from_value(v)
+    });
     let tags_text = RwSignal::new(quiz.tags.join(", "));
     let minutes_text = RwSignal::new(
         quiz.settings
@@ -169,23 +200,19 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
             <h2>"Details"</h2>
             <label class="field">
                 <span>"Title"</span>
-                <input type="text" prop:value=move || draft.with(|q| q.title.clone())
-                    on:input=move |ev| draft.update(|q| q.title = event_target_value(&ev))/>
+                <Input bind_value=title/>
             </label>
             <label class="field">
                 <span>"Description"</span>
-                <textarea rows="3" prop:value=move || draft.with(|q| q.description.clone())
-                    on:input=move |ev| draft.update(|q| q.description = event_target_value(&ev))></textarea>
+                <Textarea rows=3u32 bind_value=description/>
             </label>
             <label class="field">
                 <span>"Category"</span>
-                <input type="text" prop:value=move || draft.with(|q| q.category.clone().unwrap_or_default())
-                    on:input=move |ev| draft.update(|q| q.category = Some(event_target_value(&ev)))/>
+                <Input bind_value=category/>
             </label>
             <label class="field">
                 <span>"Tags (comma separated)"</span>
-                <input type="text" prop:value=move || tags_text.get()
-                    on:input=move |ev| tags_text.set(event_target_value(&ev))/>
+                <Input bind_value=tags_text/>
             </label>
         </section>
 
@@ -193,40 +220,41 @@ fn EditForm(quiz: Quiz) -> impl IntoView {
             <h2>"Settings"</h2>
             <label class="field">
                 <span>"Time limit in minutes (blank for none)"</span>
-                <input type="number" min="0" prop:value=move || minutes_text.get()
-                    on:input=move |ev| minutes_text.set(event_target_value(&ev))/>
+                <Input r#type=InputType::Number min="0" bind_value=minutes_text/>
             </label>
             <label class="field">
                 <span>"Pass mark in percent (blank for none)"</span>
-                <input type="number" min="0" max="100" prop:value=move || pass_text.get()
-                    on:input=move |ev| pass_text.set(event_target_value(&ev))/>
+                <Input r#type=InputType::Number min="0" max="100" bind_value=pass_text/>
             </label>
             <label class="check">
-                <input type="checkbox"
-                    prop:checked=move || draft.with(|q| q.settings.shuffle_questions)
-                    on:change=move |ev| draft.update(|q| q.settings.shuffle_questions = event_target_checked(&ev))/>
+                <Checkbox
+                    aria_label="Shuffle questions"
+                    checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_questions))
+                    on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_questions = v))/>
                 <span>"Shuffle questions"</span>
             </label>
             <label class="check">
-                <input type="checkbox"
-                    prop:checked=move || draft.with(|q| q.settings.shuffle_options)
-                    on:change=move |ev| draft.update(|q| q.settings.shuffle_options = event_target_checked(&ev))/>
+                <Checkbox
+                    aria_label="Shuffle answer options"
+                    checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_options))
+                    on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_options = v))/>
                 <span>"Shuffle answer options"</span>
             </label>
             <label class="check">
-                <input type="checkbox"
-                    prop:checked=move || draft.with(|q| q.settings.one_at_a_time)
-                    on:change=move |ev| draft.update(|q| q.settings.one_at_a_time = event_target_checked(&ev))/>
+                <Checkbox
+                    aria_label="Show one question at a time"
+                    checked=Signal::derive(move || draft.with(|q| q.settings.one_at_a_time))
+                    on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.one_at_a_time = v))/>
                 <span>"Show one question at a time"</span>
             </label>
             <label class="field">
                 <span>"Answer feedback"</span>
-                <select
-                    prop:value=move || draft.with(|q| feedback_value(q.settings.feedback))
-                    on:change=move |ev| draft.update(|q| q.settings.feedback = feedback_from_value(&event_target_value(&ev)))>
+                <SelectNative
+                    value=feedback.read_only()
+                    on_change=Callback::new(move |ev: Event| feedback.set(event_target_value(&ev)))>
                     <option value="after_submit">"Show answers after submitting"</option>
                     <option value="on_the_go">"Show each answer as I go"</option>
-                </select>
+                </SelectNative>
             </label>
         </section>
 
@@ -284,6 +312,20 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
     let index = move || draft.with(|d| d.questions.iter().position(|x| x.id == qid.get_value()).unwrap_or(0));
     let count = move || draft.with(|d| d.questions.len());
 
+    let prompt = synced(draft, q.prompt.clone(), move |quiz, v| {
+        let id = qid.get_value();
+        if let Some(question) = quiz.questions.iter_mut().find(|x| x.id == id) {
+            question.prompt = v.to_string();
+        }
+    });
+    let explanation = synced(draft, q.explanation.clone(), move |quiz, v| {
+        let id = qid.get_value();
+        if let Some(question) = quiz.questions.iter_mut().find(|x| x.id == id) {
+            question.explanation = v.to_string();
+        }
+    });
+    let kind = RwSignal::new(kind_name(draft, &q.id).to_string());
+
     view! {
         <div class="question">
             <div class="question-head">
@@ -304,19 +346,20 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
             </div>
             <label class="field">
                 <span>"Prompt"</span>
-                <textarea rows="2" on:input=move |ev| {
-                    let text = event_target_value(&ev);
-                    update_question(draft, &qid.get_value(), |x| x.prompt = text);
-                }>{q.prompt.clone()}</textarea>
+                <Textarea rows=2u32 bind_value=prompt/>
             </label>
             <label class="field">
                 <span>"Type"</span>
-                <select
-                    prop:value=move || kind_name(draft, &qid.get_value())
-                    on:change=move |ev| set_kind(draft, &qid.get_value(), &event_target_value(&ev))>
+                <SelectNative
+                    value=kind.read_only()
+                    on_change=Callback::new(move |ev: Event| {
+                        let value = event_target_value(&ev);
+                        set_kind(draft, &qid.get_value(), &value);
+                        kind.set(value);
+                    })>
                     <option value="single">"Single answer"</option>
                     <option value="multi">"Multiple answers"</option>
-                </select>
+                </SelectNative>
             </label>
             <div class="options">
                 <For
@@ -334,10 +377,7 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
             </div>
             <label class="field">
                 <span>"Explanation (shown after submitting)"</span>
-                <textarea rows="2" on:input=move |ev| {
-                    let text = event_target_value(&ev);
-                    update_question(draft, &qid.get_value(), |x| x.explanation = text);
-                }>{q.explanation.clone()}</textarea>
+                <Textarea rows=2u32 bind_value=explanation/>
             </label>
         </div>
     }
@@ -355,45 +395,42 @@ fn option_number(draft: RwSignal<Quiz>, qid: &str, oid: &str) -> usize {
 
 fn option_row(draft: RwSignal<Quiz>, qid: StoredValue<String>, o: AnswerOption) -> impl IntoView {
     let oid = StoredValue::new(o.id.clone());
+    let text = synced(draft, o.text.clone(), move |quiz, v| {
+        let (question_id, option_id) = (qid.get_value(), oid.get_value());
+        if let Some(question) = quiz.questions.iter_mut().find(|x| x.id == question_id) {
+            if let Some(option) = question.options.iter_mut().find(|x| x.id == option_id) {
+                option.text = v.to_string();
+            }
+        }
+    });
     view! {
         <div class="option-row">
             <label class="correct">
-                <input type="checkbox"
-                    prop:checked=move || option_is_correct(draft, &qid.get_value(), &oid.get_value())
-                    on:change=move |ev| mark_correct(draft, &qid.get_value(), &oid.get_value(), event_target_checked(&ev))/>
+                <Checkbox
+                    aria_label="Correct answer"
+                    checked=Signal::derive(move || option_is_correct(draft, &qid.get_value(), &oid.get_value()))
+                    on_checked_change=Callback::new(move |v: bool| mark_correct(draft, &qid.get_value(), &oid.get_value(), v))/>
                 <span>"Correct"</span>
             </label>
-            <input type="text" value={o.text.clone()} placeholder="Option text"
-                aria-label=move || format!("Option {} text", option_number(draft, &qid.get_value(), &oid.get_value()))
-                on:input=move |ev| {
-                    let text = event_target_value(&ev);
-                    update_option(draft, &qid.get_value(), &oid.get_value(), |x| x.text = text);
-                }/>
-            <button class="icon-button"
-                disabled=move || question_option_count(draft, &qid.get_value()) <= MIN_OPTIONS
-                title="Remove option"
-                aria-label=move || format!("Remove option {}", option_number(draft, &qid.get_value(), &oid.get_value()))
+            <Input
+                placeholder="Option text"
+                bind_value=text
+                aria_label=Signal::derive(move || format!("Option {} text", option_number(draft, &qid.get_value(), &oid.get_value())))/>
+            <Button variant=ButtonVariant::Ghost size=ButtonSize::IconSm
+                attr:disabled=move || question_option_count(draft, &qid.get_value()) <= MIN_OPTIONS
+                attr:title="Remove option"
+                attr:aria-label=move || format!("Remove option {}", option_number(draft, &qid.get_value(), &oid.get_value()))
                 on:click=move |_| remove_option(draft, &qid.get_value(), &oid.get_value())>
                 {icons::cross()}
-            </button>
+            </Button>
         </div>
     }
 }
-
-
 
 fn update_question(draft: RwSignal<Quiz>, qid: &str, f: impl FnOnce(&mut Question)) {
     draft.update(|d| {
         if let Some(q) = d.questions.iter_mut().find(|q| q.id == qid) {
             f(q);
-        }
-    });
-}
-
-fn update_option(draft: RwSignal<Quiz>, qid: &str, oid: &str, f: impl FnOnce(&mut AnswerOption)) {
-    update_question(draft, qid, |q| {
-        if let Some(o) = q.options.iter_mut().find(|o| o.id == oid) {
-            f(o);
         }
     });
 }
@@ -550,8 +587,7 @@ fn text_import(draft: RwSignal<Quiz>) -> impl IntoView {
             </details>
             <label class="field">
                 <span>"Questions to import"</span>
-                <textarea rows="8" placeholder="Paste your questions here"
-                    on:input=move |ev| text.set(event_target_value(&ev))></textarea>
+                <Textarea rows=8u32 placeholder="Paste your questions here" bind_value=text/>
             </label>
             <div class="actions">
                 <Button variant=ButtonVariant::Outline on:click=move |_| preview.set(Some(parse_quiz_text(&text.get_untracked())))>

@@ -8,7 +8,7 @@ use tw_merge::*;
 #[component]
 pub fn SelectNative(
     children: Children,
-    #[prop(into)] id: &'static str,
+    #[prop(optional, into)] id: leptos::prelude::MaybeProp<String>,
     #[prop(optional, into)] class: String,
     #[prop(default = RwSignal::new(String::new()).read_only())] value: ReadSignal<String>,
     #[prop(optional)] on_change: Option<leptos::prelude::Callback<leptos::ev::Event>>,

@@ -11,7 +11,10 @@ use mocktest_domain::{
     AttemptSummary, AttemptStatus, BootstrapData, QuizSource, QuizSummary,
 };
 use ui::Ui;
+use kit::ui::badge::{Badge, BadgeVariant};
 use kit::ui::button::{Button, ButtonVariant};
+use kit::ui::card::Card;
+use kit::ui::table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableWrapper};
 
 #[derive(Clone, PartialEq)]
 enum Page {
@@ -171,12 +174,13 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
     let hint = if ready { None } else { Some("Open Edit to finish this quiz before starting it.") };
 
     view! {
-        <article class="card">
+        <article class="card-article">
+          <Card class="h-full">
             <div class="card-head">
                 <h2 class="card-title">{q.title.clone()}</h2>
                 <div class="badges">
-                    {is_sample.then(|| view! { <span class="badge">"Sample"</span> })}
-                    {(!ready).then(|| view! { <span class="badge warn">"Incomplete"</span> })}
+                    {is_sample.then(|| view! { <Badge variant=BadgeVariant::Secondary>"Sample"</Badge> })}
+                    {(!ready).then(|| view! { <Badge variant=BadgeVariant::Outline class="text-[var(--warn)] border-[var(--warn)]">"Incomplete"</Badge> })}
                 </div>
             </div>
             {(!q.description.is_empty()).then(|| view! { <p class="muted">{q.description.clone()}</p> })}
@@ -185,7 +189,7 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
             {hint.map(|text| view! { <p class="hint">{text}</p> })}
             <div class="actions">
                 {match resume_href {
-                    Some(href) => view! { <a class="button primary" href={href}>"Resume"</a> }.into_any(),
+                    Some(href) => view! { <Button variant=ButtonVariant::Default href=href>"Resume"</Button> }.into_any(),
                     None => view! {
                         <Button variant=ButtonVariant::Default attr:disabled={!ready}
                             on:click=move |_| start_attempt(ui, start_id.clone())>"Start"</Button>
@@ -193,7 +197,7 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
                     .into_any(),
                 }}
                 <details class="menu">
-                    <summary class="button">"More"</summary>
+                    <summary class="more-toggle">"More"</summary>
                     <div class="menu-items">
                         {(!is_sample).then(|| view! { <a class="menu-item" href={edit_href}>"Edit"</a> })}
                         <button class="menu-item" on:click=move |_| duplicate(ui, dup_id.clone())>
@@ -209,6 +213,7 @@ fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
                     </div>
                 </details>
             </div>
+          </Card>
         </article>
     }
 }
@@ -312,14 +317,16 @@ fn History(ui: Ui) -> impl IntoView {
                     <div class="actions">
                         <Button variant=ButtonVariant::Destructive on:click=move |_| clear_history(ui)>"Clear history"</Button>
                     </div>
-                    <div class="table-wrap"><table class="table">
-                        <thead>
-                            <tr>
-                                <th>"Quiz"</th><th>"Started"</th><th>"Status"</th><th>"Score"</th><th></th>
-                            </tr>
-                        </thead>
-                        <tbody>{rows.into_iter().map(history_row).collect_view()}</tbody>
-                    </table></div>
+                    <TableWrapper>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>"Quiz"</TableHead><TableHead>"Started"</TableHead><TableHead>"Status"</TableHead><TableHead>"Score"</TableHead><TableHead>""</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>{rows.into_iter().map(history_row).collect_view()}</TableBody>
+                        </Table>
+                    </TableWrapper>
                 }
                 .into_any()
             }
@@ -361,18 +368,18 @@ fn history_row(a: AttemptSummary) -> impl IntoView {
         )
     };
     let action = if in_progress {
-        view! { <a class="button primary" href={format!("#/attempt/{}", a.id)}>"Resume"</a> }.into_any()
+        view! { <Button variant=ButtonVariant::Default href=format!("#/attempt/{}", a.id)>"Resume"</Button> }.into_any()
     } else {
-        view! { <a class="button" href={format!("#/review/{}", a.id)}>"Review"</a> }.into_any()
+        view! { <Button variant=ButtonVariant::Outline href=format!("#/review/{}", a.id)>"Review"</Button> }.into_any()
     };
     view! {
-        <tr>
-            <td>{a.quiz_title.clone()}</td>
-            <td>{ui::fmt_date(a.started_at)}</td>
-            <td>{ui::status_label(a.status)}</td>
-            <td>{score}</td>
-            <td>{action}</td>
-        </tr>
+        <TableRow>
+            <TableCell>{a.quiz_title.clone()}</TableCell>
+            <TableCell>{ui::fmt_date(a.started_at)}</TableCell>
+            <TableCell>{ui::status_label(a.status)}</TableCell>
+            <TableCell>{score}</TableCell>
+            <TableCell>{action}</TableCell>
+        </TableRow>
     }
 }
 

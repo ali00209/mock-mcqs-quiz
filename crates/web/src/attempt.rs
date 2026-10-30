@@ -11,6 +11,9 @@ use wasm_bindgen::{JsCast, prelude::*};
 use crate::icons;
 
 use crate::api;
+use crate::kit::ui::badge::{Badge, BadgeVariant};
+use crate::kit::ui::checkbox::Checkbox;
+use crate::kit::ui::radio_button::{RadioGroup, RadioGroupItem};
 use crate::ui::{self, Ui};
 use crate::kit::ui::button::{Button, ButtonVariant};
 
@@ -314,8 +317,19 @@ fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
 fn question_card(session: Session, q: AttemptQuestionView, position: usize, one: bool) -> impl IntoView {
     let qid = StoredValue::new(q.id.clone());
     let kind = q.kind;
-    let input_type = if kind == QuestionKind::Single { "radio" } else { "checkbox" };
-    let group = format!("q-{}", q.id);
+
+    // A single-answer question shares one RadioGroup value. Each change is saved from this effect.
+    let picked = RwSignal::new(session.answer(&q.id).selected.first().cloned().unwrap_or_default());
+    Effect::new(move |first: Option<()>| {
+        let value = picked.get();
+        if first.is_some() {
+            let id = qid.get_value();
+            // Untracked, so this effect does not re-run when the answers change.
+            let flagged = session.answers.with_untracked(|m| m.get(&id).is_some_and(|a| a.flagged));
+            let selected = if value.is_empty() { Vec::new() } else { vec![value] };
+            session.save(id, selected, flagged);
+        }
+    });
 
     // Empty unless the quiz gives feedback on the go, so no feedback is shown otherwise.
     let show_feedback = !q.correct_option_ids.is_empty();
@@ -330,22 +344,37 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
     );
     let explanation = StoredValue::new(q.explanation.clone());
 
-    let choices = q
+    let choices: Vec<_> = q
         .options
         .into_iter()
         .map(|o| {
             let oid = StoredValue::new(o.id.clone());
-            let group = group.clone();
-            view! {
-                <label class="choice">
-                    <input type={input_type} name={group}
-                        prop:checked=move || session.answer(&qid.get_value()).selected.contains(&oid.get_value())
-                        on:change=move |ev| session.choose(&qid.get_value(), kind, &oid.get_value(), event_target_checked(&ev))/>
-                    <span>{o.text}</span>
-                </label>
+            let text = o.text;
+            match kind {
+                QuestionKind::Single => view! {
+                    <label class="choice">
+                        <RadioGroupItem value=oid.get_value() />
+                        <span>{text}</span>
+                    </label>
+                }
+                .into_any(),
+                QuestionKind::Multi => view! {
+                    <label class="choice">
+                        <Checkbox
+                            aria_label=text.clone()
+                            checked=Signal::derive(move || session.answer(&qid.get_value()).selected.contains(&oid.get_value()))
+                            on_checked_change=Callback::new(move |v: bool| session.choose(&qid.get_value(), kind, &oid.get_value(), v))/>
+                        <span>{text}</span>
+                    </label>
+                }
+                .into_any(),
             }
         })
-        .collect_view();
+        .collect();
+    let options = match kind {
+        QuestionKind::Single => view! { <RadioGroup class="choices" value=picked>{choices}</RadioGroup> }.into_any(),
+        QuestionKind::Multi => view! { <div class="choices">{choices}</div> }.into_any(),
+    };
 
     // Shown once the question has an answer, when the quiz marks answers as they go.
     let feedback = move || {
@@ -379,14 +408,15 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
                 <h2 class="question-title">{format!("Question {}", position + 1)}</h2>
                 <span class="muted">{if kind == QuestionKind::Single { "Choose one" } else { "Choose all that apply" }}</span>
                 <label class="flag">
-                    <input type="checkbox"
-                        prop:checked=move || session.answer(&qid.get_value()).flagged
-                        on:change=move |ev| session.set_flag(&qid.get_value(), event_target_checked(&ev))/>
+                    <Checkbox
+                        aria_label="Flag this question"
+                        checked=Signal::derive(move || session.answer(&qid.get_value()).flagged)
+                        on_checked_change=Callback::new(move |v: bool| session.set_flag(&qid.get_value(), v))/>
                     "Flag"
                 </label>
             </div>
             <p class="prompt">{q.prompt}</p>
-            <div class="choices">{choices}</div>
+            {options}
             {feedback}
         </section>
     }
@@ -424,7 +454,7 @@ fn review_view(ui: Ui, review: AttemptReview) -> impl IntoView {
                 <p class="muted">{format!("{} · {}", ui::fmt_date(a.started_at), ui::status_label(a.status))}</p>
             </div>
             <div class="actions">
-                <a class="button" href="#/">"Library"</a>
+                <Button variant=ButtonVariant::Outline href="#/".to_string()>"Library"</Button>
                 {retake_quiz.map(|quiz_id| {
                     view! { <Button variant=ButtonVariant::Default on:click=move |_| retake(ui, quiz_id.clone())>"Retake"</Button> }
                 })}
@@ -463,9 +493,9 @@ fn result_note(passed: Option<bool>, correct: u32, total: u32) -> &'static str {
 
 fn review_question(index: usize, q: ReviewQuestion) -> impl IntoView {
     let (class, badge_class, badge_text) = if q.is_correct {
-        ("panel review-q ok", "badge ok", "Correct")
+        ("panel review-q ok", "text-[var(--ok)] border-[var(--ok)]", "Correct")
     } else {
-        ("panel review-q bad", "badge bad", "Incorrect")
+        ("panel review-q bad", "text-[var(--bad)] border-[var(--bad)]", "Incorrect")
     };
     let options: Vec<_> = q
         .options
@@ -496,8 +526,8 @@ fn review_question(index: usize, q: ReviewQuestion) -> impl IntoView {
         <section class={class}>
             <div class="question-head">
                 <h2 class="question-title">{format!("Question {}", index + 1)}</h2>
-                <span class={badge_class}>{badge_text}</span>
-                {q.flagged.then(|| view! { <span class="badge warn">"Flagged"</span> })}
+                <Badge variant=BadgeVariant::Outline class=badge_class>{badge_text}</Badge>
+                {q.flagged.then(|| view! { <Badge variant=BadgeVariant::Outline class="text-[var(--warn)] border-[var(--warn)]">"Flagged"</Badge> })}
             </div>
             <p class="prompt">{q.prompt}</p>
             <ul class="review-options">{options}</ul>
