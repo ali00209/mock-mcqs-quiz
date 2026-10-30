@@ -280,7 +280,7 @@ fn attempt_view(
             }
         })}
         {if one {
-            view! { <Carousel index=session.index><CarouselContent>{cards}</CarouselContent></Carousel> }.into_any()
+            view! { <Carousel index=session.index count=total><CarouselContent>{cards}</CarouselContent></Carousel> }.into_any()
         } else {
             view! { <div>{cards}</div> }.into_any()
         }}

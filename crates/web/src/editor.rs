@@ -301,13 +301,13 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 <StepperItem step=1>
                     <StepperTrigger class="w-full">
                         <StepperIndicator/>
-                        <StepperTitle>"Settings"</StepperTitle>
+                        <StepperTitle>"Questions"</StepperTitle>
                     </StepperTrigger>
                 </StepperItem>
                 <StepperItem step=2>
                     <StepperTrigger class="w-full">
                         <StepperIndicator/>
-                        <StepperTitle>"Questions"</StepperTitle>
+                        <StepperTitle>"Settings"</StepperTitle>
                     </StepperTrigger>
                 </StepperItem>
             </div>
@@ -334,53 +334,11 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             </FormStep>
             <FormStep step=1>
 
-        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
-            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Settings"</h2>
-            <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Time limit in minutes (blank for none)"</span>
-                <Input r#type=InputType::Number min="0" bind_value=minutes_text/>
-            </label>
-            <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Pass mark in percent (blank for none)"</span>
-                <Input r#type=InputType::Number min="0" max="100" bind_value=pass_text/>
-            </label>
-            <label class="mb-2.5 flex items-center gap-2.5">
-                <Switch
-                    aria_label="Shuffle questions"
-                    checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_questions))
-                    on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_questions = v))/>
-                <span>"Shuffle questions"</span>
-            </label>
-            <label class="mb-2.5 flex items-center gap-2.5">
-                <Switch
-                    aria_label="Shuffle answer options"
-                    checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_options))
-                    on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_options = v))/>
-                <span>"Shuffle answer options"</span>
-            </label>
-            <label class="mb-2.5 flex items-center gap-2.5">
-                <Switch
-                    aria_label="Show one question at a time"
-                    checked=Signal::derive(move || draft.with(|q| q.settings.one_at_a_time))
-                    on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.one_at_a_time = v))/>
-                <span>"Show one question at a time"</span>
-            </label>
-            <div class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Answer feedback"</span>
-                <Select
-                    aria_label="Answer feedback"
-                    value=feedback
-                    options=vec![("after_submit", "Show answers after submitting"), ("on_the_go", "Show each answer as I go")]/>
-            </div>
-        </section>
-            </FormStep>
-            <FormStep step=2>
-
             {text_import(ui, draft)}
 
         <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Questions"</h2>
-            <Carousel index=question_index class="flex flex-col gap-4">
+            <Carousel index=question_index count=question_count class="flex flex-col gap-4">
                 <CarouselContent>
                     <For
                         each=move || draft.get().questions
@@ -423,7 +381,58 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             }}
         </section>
             </FormStep>
-            <StepNav/>
+            <FormStep step=2>
+
+        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Settings"</h2>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Time limit in minutes (blank for none)"</span>
+                <Input r#type=InputType::Number min="0" bind_value=minutes_text/>
+            </label>
+            <label class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Pass mark in percent (blank for none)"</span>
+                <Input r#type=InputType::Number min="0" max="100" bind_value=pass_text/>
+            </label>
+            <label class="mb-2.5 flex items-center gap-2.5">
+                <Switch
+                    aria_label="Shuffle questions"
+                    checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_questions))
+                    on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_questions = v))/>
+                <span>"Shuffle questions"</span>
+            </label>
+            <label class="mb-2.5 flex items-center gap-2.5">
+                <Switch
+                    aria_label="Shuffle answer options"
+                    checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_options))
+                    on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_options = v))/>
+                <span>"Shuffle answer options"</span>
+            </label>
+            <label class="mb-2.5 flex items-center gap-2.5">
+                <Switch
+                    aria_label="Show one question at a time"
+                    checked=Signal::derive(move || draft.with(|q| q.settings.one_at_a_time))
+                    on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.one_at_a_time = v))/>
+                <span>"Show one question at a time"</span>
+            </label>
+            <div class="mb-3.5 flex flex-col gap-1.5">
+                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Answer feedback"</span>
+                <Select
+                    aria_label="Answer feedback"
+                    value=feedback
+                    options=vec![("after_submit", "Show answers after submitting"), ("on_the_go", "Show each answer as I go")]/>
+            </div>
+        </section>
+            </FormStep>
+            <div class="sticky bottom-0 z-[3] mt-2 flex w-full basis-full flex-wrap items-center justify-between gap-2 border-t-2 border-ink bg-background py-3.5">
+                <StepNav/>
+                <div class="flex flex-wrap items-center gap-2">
+                <Button variant=ButtonVariant::Outline attr:disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</Button>
+                <Button variant=ButtonVariant::Outline on:click=move |_| exit()>"Exit without saving"</Button>
+                <Button variant=ButtonVariant::Default attr:disabled=move || saving.get() on:click=move |_| save()>
+                    {move || if saving.get() { "Saving…" } else { "Save quiz" }}
+                </Button>
+                </div>
+            </div>
         </Stepper>
 
         {move || {
@@ -437,13 +446,6 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             })
         }}
 
-        <div class="sticky bottom-0 z-[3] mt-2 flex flex-wrap justify-end gap-2 border-t-2 border-ink bg-background py-3.5">
-            <Button variant=ButtonVariant::Outline attr:disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</Button>
-            <Button variant=ButtonVariant::Outline on:click=move |_| exit()>"Exit without saving"</Button>
-            <Button variant=ButtonVariant::Default attr:disabled=move || saving.get() on:click=move |_| save()>
-                {move || if saving.get() { "Saving…" } else { "Save quiz" }}
-            </Button>
-        </div>
     }
 }
 
@@ -840,9 +842,9 @@ fn FormStep(step: usize, children: Children) -> impl IntoView {
 #[component]
 fn StepNav() -> impl IntoView {
     let ctx = expect_context::<StepperContext>();
-    let names = ["Details", "Settings", "Questions"];
+    let names = ["Details", "Questions", "Settings"];
     view! {
-        <div class="mb-7 flex w-full flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <Button variant=ButtonVariant::Outline attr:aria-disabled=move || (!ctx.can_go_prev.get()).then_some("true")
                 on:click=move |_| ctx.go_prev.run(())>"Back"</Button>
             <span class="text-[13px] text-muted-foreground">
