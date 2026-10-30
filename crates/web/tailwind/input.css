@@ -4,8 +4,8 @@
  * defines the colour tokens (in light and dark mode) that those utilities read.
  */
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
 @import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
 
 @source "../src";
 
