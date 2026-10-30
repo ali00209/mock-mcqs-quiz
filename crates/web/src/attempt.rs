@@ -16,6 +16,7 @@ use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::radio_button::{RadioGroup, RadioGroupItem};
 use crate::ui::{self, Ui};
 use crate::kit::ui::button::{Button, ButtonVariant};
+use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious};
 
 #[derive(Clone, Default)]
 struct Answer {
@@ -254,7 +255,9 @@ fn attempt_view(
         .questions
         .into_iter()
         .enumerate()
-        .map(|(position, q)| question_card(session, q, position, one))
+        .map(|(position, q)| {
+            view! { <CarouselItem position=position>{question_card(session, q, position, one)}</CarouselItem> }.into_any()
+        })
         .collect();
 
     view! {
@@ -276,20 +279,17 @@ fn attempt_view(
                 </nav>
             }
         })}
-        <div >{cards}</div>
+        {if one {
+            view! { <Carousel index=session.index><CarouselContent>{cards}</CarouselContent></Carousel> }.into_any()
+        } else {
+            view! { <div>{cards}</div> }.into_any()
+        }}
         <div class="flex flex-wrap items-center gap-2 justify-between mt-3">
             {one.then(|| {
-                // aria-disabled instead of disabled: a disabled button loses keyboard focus.
                 view! {
                     <div class="flex flex-wrap items-center gap-2">
-                        <Button variant=ButtonVariant::Outline attr:aria-disabled=move || (session.index.get() == 0).then_some("true")
-                            on:click=move |_| session.index.update(|i| *i = i.saturating_sub(1))>"Previous"</Button>
-                        <Button variant=ButtonVariant::Outline attr:aria-disabled=move || (session.index.get() + 1 >= total).then_some("true")
-                            on:click=move |_| {
-                                if session.index.get() + 1 < total {
-                                    session.index.update(|i| *i += 1);
-                                }
-                            }>"Next"</Button>
+                        <CarouselPrevious index=session.index/>
+                        <CarouselNext index=session.index count=total/>
                     </div>
                 }
             })}

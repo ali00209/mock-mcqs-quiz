@@ -1,6 +1,5 @@
 // Quiz editor. Edits a local copy (`draft`) and saves it through the worker,
 // which runs the same validation rules as the domain crate.
-use leptos::ev::Event;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use mocktest_domain::{
@@ -13,7 +12,8 @@ use crate::icons;
 use crate::kit::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::input::{Input, InputType};
-use crate::kit::ui::select_native::SelectNative;
+use crate::kit::ui::select::Select;
+use crate::kit::ui::switch::Switch;
 use crate::kit::ui::textarea::Textarea;
 use crate::ui::{self, LeaveGuard, Ui};
 use std::rc::Rc;
@@ -309,21 +309,21 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 <Input r#type=InputType::Number min="0" max="100" bind_value=pass_text/>
             </label>
             <label class="mb-2.5 flex items-center gap-2.5">
-                <Checkbox
+                <Switch
                     aria_label="Shuffle questions"
                     checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_questions))
                     on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_questions = v))/>
                 <span>"Shuffle questions"</span>
             </label>
             <label class="mb-2.5 flex items-center gap-2.5">
-                <Checkbox
+                <Switch
                     aria_label="Shuffle answer options"
                     checked=Signal::derive(move || draft.with(|q| q.settings.shuffle_options))
                     on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.shuffle_options = v))/>
                 <span>"Shuffle answer options"</span>
             </label>
             <label class="mb-2.5 flex items-center gap-2.5">
-                <Checkbox
+                <Switch
                     aria_label="Show one question at a time"
                     checked=Signal::derive(move || draft.with(|q| q.settings.one_at_a_time))
                     on_checked_change=Callback::new(move |v: bool| draft.update(|q| q.settings.one_at_a_time = v))/>
@@ -331,12 +331,10 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             </label>
             <label class="mb-3.5 flex flex-col gap-1.5">
                 <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Answer feedback"</span>
-                <SelectNative
-                    value=feedback.read_only()
-                    on_change=Callback::new(move |ev: Event| feedback.set(event_target_value(&ev)))>
-                    <option value="after_submit">"Show answers after submitting"</option>
-                    <option value="on_the_go">"Show each answer as I go"</option>
-                </SelectNative>
+                <Select
+                    aria_label="Answer feedback"
+                    value=feedback
+                    options=vec![("after_submit", "Show answers after submitting"), ("on_the_go", "Show each answer as I go")]/>
             </label>
         </section>
 
@@ -426,16 +424,11 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question) -> impl IntoView {
             </label>
             <label class="mb-3.5 flex flex-col gap-1.5">
                 <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Type"</span>
-                <SelectNative
-                    value=kind.read_only()
-                    on_change=Callback::new(move |ev: Event| {
-                        let value = event_target_value(&ev);
-                        set_kind(draft, &qid.get_value(), &value);
-                        kind.set(value);
-                    })>
-                    <option value="single">"Single answer"</option>
-                    <option value="multi">"Multiple answers"</option>
-                </SelectNative>
+                <Select
+                    aria_label="Question type"
+                    value=kind
+                    options=vec![("single", "Single answer"), ("multi", "Multiple answers")]
+                    on_change=Callback::new(move |value: String| set_kind(draft, &qid.get_value(), &value))/>
             </label>
             <div >
                 <For

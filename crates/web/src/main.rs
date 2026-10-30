@@ -16,7 +16,7 @@ use kit::ui::toast_custom::_context::ToasterContext;
 use kit::ui::toast_custom::toaster::Toaster;
 use kit::ui::dropdown_menu::{DropdownMenu, DropdownMenuAction, DropdownMenuActionVariant, DropdownMenuContent, DropdownMenuTrigger};
 use kit::ui::button::{Button, ButtonVariant};
-use kit::ui::card::Card;
+use kit::ui::input::{Input, InputType};
 use kit::ui::table::{Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableWrapper};
 
 #[derive(Clone, PartialEq)]
@@ -94,10 +94,13 @@ fn App() -> impl IntoView {
     view! {
         <ui::ConfirmDialog ui=ui/>
         <Toaster/>
-        <nav class="mx-auto flex max-w-[960px] flex-wrap justify-end gap-1.5 px-4 pt-4" aria-label="Pages">
-            <a href="#/" aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
-            <a href="#/history" aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
-            <a href="#/data" aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
+        <nav class="mx-auto flex max-w-[960px] flex-wrap items-center justify-between gap-3 px-4 pt-4" aria-label="Pages">
+            <span class="font-display font-stretch-[125%] font-black text-lg uppercase tracking-[-0.01em] text-ink">"MockTest"</span>
+            <div class="flex flex-wrap gap-1.5">
+                <a href="#/" class={move || tab_class(page.get() == Page::Library)} aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
+                <a href="#/history" class={move || tab_class(page.get() == Page::History)} aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
+                <a href="#/data" class={move || tab_class(page.get() == Page::Data)} aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
+            </div>
         </nav>
         <main class="mx-auto max-w-[960px] px-4 pt-7 pb-[72px]">
             {move || {
@@ -129,6 +132,7 @@ fn App() -> impl IntoView {
 
 #[component]
 fn Library(ui: Ui) -> impl IntoView {
+    let search = RwSignal::new(String::new());
     let data = RwSignal::new(None::<Result<BootstrapData, String>>);
     Effect::new(move |_| {
         ui.version.get();
@@ -159,95 +163,133 @@ fn Library(ui: Ui) -> impl IntoView {
                 </section>
             }
             .into_any(),
-            Some(Ok(bootstrap)) => view! {
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-[18px] [overflow-wrap:anywhere]">
-                    {bootstrap.quizzes.into_iter().map(|q| quiz_card(ui, q)).collect_view()}
-                </div>
+            Some(Ok(bootstrap)) => {
+                let quizzes = StoredValue::new(bootstrap.quizzes);
+                view! {
+                    <div class="mb-4 max-w-md">
+                        <Input r#type=InputType::Search placeholder="Search by title, category or tag" aria_label="Search quizzes" bind_value=search/>
+                    </div>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>"Quiz"</TableHead><TableHead>"Questions"</TableHead><TableHead>"Time limit"</TableHead><TableHead>"Attempts"</TableHead><TableHead>""</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {move || {
+                                let needle = search.get().trim().to_lowercase();
+                                let rows = quizzes.with_value(|list| {
+                                    list.iter().filter(|q| matches_search(q, &needle)).cloned().map(|q| quiz_row(ui, q)).collect_view()
+                                });
+                                if rows.is_empty() && !needle.is_empty() {
+                                    view! { <tr><td class="p-4 text-muted-foreground">"No quizzes match your search."</td></tr> }.into_any()
+                                } else {
+                                    rows.into_any()
+                                }
+                            }}
+                        </TableBody>
+                    </Table>
+                }
+                .into_any()
             }
-            .into_any(),
         }}
     }
 }
 
-fn quiz_card(ui: Ui, q: QuizSummary) -> impl IntoView {
+fn tab_class(active: bool) -> &'static str {
+    if active {
+        "inline-flex h-9 items-center border-2 border-ink bg-primary px-4 font-display font-stretch-[112%] font-black text-sm uppercase tracking-[-0.01em] text-primary-foreground no-underline"
+    } else {
+        "inline-flex h-9 items-center border-2 border-ink bg-field-bg px-4 font-display font-stretch-[112%] font-black text-sm uppercase tracking-[-0.01em] text-field-ink no-underline hover:bg-ink hover:text-surface"
+    }
+}
+
+fn matches_search(q: &QuizSummary, needle: &str) -> bool {
+    needle.is_empty()
+        || q.title.to_lowercase().contains(needle)
+        || q.category.as_deref().unwrap_or("").to_lowercase().contains(needle)
+        || q.tags.iter().any(|t| t.to_lowercase().contains(needle))
+}
+
+fn quiz_row(ui: Ui, q: QuizSummary) -> impl IntoView {
     let is_sample = q.source == QuizSource::Sample;
-    let details = [
+    let time = match q.time_limit_secs {
+        Some(secs) => format!("{} min", secs / 60),
+        None => "No limit".to_string(),
+    };
+    let attempts = format!(
+        "{}{}",
+        q.attempts_count,
+        match q.best_percent {
+            Some(best) => format!(" · best {}", ui::pct(Some(best))),
+            None => String::new(),
+        }
+    );
+    let meta = [
         q.category.clone(),
-        Some(format!("{} question(s)", q.question_count)),
-        Some(match q.time_limit_secs {
-            Some(secs) => format!("{} min", secs / 60),
-            None => "No time limit".to_string(),
-        }),
         q.pass_percent.map(|p| format!("Pass {p}%")),
+        (!q.tags.is_empty()).then(|| q.tags.join(", ")),
     ]
     .into_iter()
     .flatten()
     .collect::<Vec<_>>()
     .join(" · ");
-    let attempts = format!(
-        "{} attempt(s){}",
-        q.attempts_count,
-        match q.best_percent {
-            Some(best) => format!(" · Best {}", ui::pct(Some(best))),
-            None => String::new(),
-        }
-    );
     let resume_href = q.active_attempt_id.clone().map(|a| format!("#/attempt/{a}"));
     let edit_href = format!("#/edit/{}", q.id);
-    let (start_id, dup_id, export_id, export_title, delete_id, delete_title) = (
-        q.id.clone(),
-        q.id.clone(),
-        q.id.clone(),
-        q.title.clone(),
-        q.id.clone(),
-        q.title.clone(),
-    );
     let ready = q.ready;
-    let hint = if ready { None } else { Some("Open Edit to finish this quiz before starting it.") };
+    let hint = (!ready).then_some("Open Edit to finish this quiz before starting it.");
+    // Menu handlers run from a closure that may run more than once, so the ids are copied out of a StoredValue.
+    let start_id = StoredValue::new(q.id.clone());
+    let dup_id = StoredValue::new(q.id.clone());
+    let export_id = StoredValue::new(q.id.clone());
+    let export_title = StoredValue::new(q.title.clone());
+    let delete_id = StoredValue::new(q.id.clone());
+    let delete_title = StoredValue::new(q.title.clone());
 
     view! {
-        <article >
-          <Card class="h-full">
-            <div class="flex items-start justify-between gap-2">
-                <h2 class="m-0 font-display font-stretch-[112%] text-lg font-extrabold uppercase leading-[1.2] tracking-[0.02em] [overflow-wrap:anywhere]">{q.title.clone()}</h2>
-                <div class="flex flex-wrap gap-1.5">
+        <TableRow>
+            <TableCell class="whitespace-normal">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="font-display font-stretch-[112%] font-extrabold uppercase tracking-[0.02em] [overflow-wrap:anywhere]">{q.title.clone()}</span>
                     {is_sample.then(|| view! { <Badge variant=BadgeVariant::Secondary>"Sample"</Badge> })}
                     {(!ready).then(|| view! { <Badge variant=BadgeVariant::Outline class="text-[var(--warn)] border-[var(--warn)]">"Incomplete"</Badge> })}
                 </div>
-            </div>
-            {(!q.description.is_empty()).then(|| view! { <p class="text-muted-foreground">{q.description.clone()}</p> })}
-            <p class="m-0 text-[13px] text-muted-foreground">{details}</p>
-            <p class="m-0 text-[13px] text-muted-foreground">{attempts}</p>
-            {hint.map(|text| view! { <p class="m-0 text-[13px] text-muted-foreground">{text}</p> })}
-            <div class="flex flex-wrap items-center gap-2">
-                {match resume_href {
-                    Some(href) => view! { <Button variant=ButtonVariant::Default href=href>"Resume"</Button> }.into_any(),
-                    None => view! {
-                        <Button variant=ButtonVariant::Default attr:disabled={!ready}
-                            on:click=move |_| start_attempt(ui, start_id.clone())>"Start"</Button>
-                    }
-                    .into_any(),
-                }}
-                <DropdownMenu>
-                    <DropdownMenuTrigger>"More"</DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        {(!is_sample).then(|| view! { <DropdownMenuAction href=edit_href.clone()>"Edit"</DropdownMenuAction> })}
-                        <div class="contents" on:click=move |_| duplicate(ui, dup_id.clone())>
-                            <DropdownMenuAction>{if is_sample { "Duplicate to edit" } else { "Duplicate" }}</DropdownMenuAction>
-                        </div>
-                        <div class="contents" on:click=move |_| export_quiz(ui, export_id.clone(), export_title.clone())>
-                            <DropdownMenuAction>"Export"</DropdownMenuAction>
-                        </div>
-                        {(!is_sample).then(|| view! {
-                            <div class="contents" on:click=move |_| delete_quiz(ui, delete_id.clone(), delete_title.clone())>
-                                <DropdownMenuAction variant=DropdownMenuActionVariant::Destructive>"Delete"</DropdownMenuAction>
+                {(!meta.is_empty()).then(|| view! { <div class="mt-1 text-[13px] text-muted-foreground">{meta}</div> })}
+                {hint.map(|text| view! { <div class="mt-1 text-[13px] text-muted-foreground">{text}</div> })}
+            </TableCell>
+            <TableCell>{q.question_count}</TableCell>
+            <TableCell>{time}</TableCell>
+            <TableCell>{attempts}</TableCell>
+            <TableCell>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                    {match resume_href {
+                        Some(href) => view! { <Button variant=ButtonVariant::Default href=href>"Resume"</Button> }.into_any(),
+                        None => view! {
+                            <Button variant=ButtonVariant::Default attr:disabled={!ready}
+                                on:click=move |_| start_attempt(ui, start_id.get_value())>"Start"</Button>
+                        }
+                        .into_any(),
+                    }}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger>"More"</DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            {(!is_sample).then(|| view! { <DropdownMenuAction href=edit_href.clone()>"Edit"</DropdownMenuAction> })}
+                            <div class="contents" on:click=move |_| duplicate(ui, dup_id.get_value())>
+                                <DropdownMenuAction>{if is_sample { "Duplicate to edit" } else { "Duplicate" }}</DropdownMenuAction>
                             </div>
-                        })}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-          </Card>
-        </article>
+                            <div class="contents" on:click=move |_| export_quiz(ui, export_id.get_value(), export_title.get_value())>
+                                <DropdownMenuAction>"Export"</DropdownMenuAction>
+                            </div>
+                            {(!is_sample).then(|| view! {
+                                <div class="contents" on:click=move |_| delete_quiz(ui, delete_id.get_value(), delete_title.get_value())>
+                                    <DropdownMenuAction variant=DropdownMenuActionVariant::Destructive>"Delete"</DropdownMenuAction>
+                                </div>
+                            })}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </TableCell>
+        </TableRow>
     }
 }
 
