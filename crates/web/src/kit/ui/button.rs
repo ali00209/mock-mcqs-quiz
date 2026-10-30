@@ -8,11 +8,11 @@ variants! {
         base: "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive  w-fit  hover:cursor-pointer active:scale-[0.98] active:opacity-100 touch-manipulation [-webkit-tap-highlight-color:transparent] select-none [-webkit-touch-callout:none]", // Using hover:cursor-pointer as workaround for href_support.
         variants: {
             variant: {
-                Default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+                Default: "bg-primary text-primary-foreground shadow-xs hover:bg-foreground hover:text-primary-foreground",
                 Destructive: "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-                Outline: "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/5",
+                Outline: "border-2 border-foreground bg-[#ffffff] shadow-xs hover:bg-foreground hover:text-primary-foreground",
                 Secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
-                Ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+                Ghost: "hover:bg-foreground hover:text-primary-foreground",
                 Accent: "bg-accent text-accent-foreground hover:bg-accent/80",
                 Link: "text-primary underline-offset-4 hover:underline",
                 //
@@ -28,7 +28,7 @@ variants! {
                 IconSm: "size-8 rounded-md",
                 IconXs: "size-6 rounded-md",
                 //
-                Mobile: "px-6 py-3 rounded-[24px]",
+                Mobile: "px-6 py-3 rounded-md",
                 Badge: "px-2.5 py-0.5 text-xs"
             }
         },

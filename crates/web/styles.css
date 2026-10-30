@@ -126,6 +126,25 @@ p { margin: 0 0 10px; }
 
 /* ---- Buttons ---- */
 /* ---- Buttons ----
+   Buttons are the kit's Button component (kit/ui/button.rs). The design system (DESIGN.md)
+   sets the brand behaviour the kit's stock utilities don't carry: display type, white
+   secondary buttons with a black rule border, hover that inverts to black, and 44px targets.
+   These rules top up the kit's own classes without touching them. */
+button[data-name="Button"] {
+  min-height: 44px;
+  font-family: var(--display);
+  font-stretch: 112%;
+  font-weight: 900;
+  font-size: 14px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+button[data-name="Button"]:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--accent-text);
+}
+/* ---- Buttons ----
    Buttons are the kit's Button component (kit/ui/button.rs). These rules are for the raw
    buttons that remain: question-nav chips, the option remove button. */
 .qbtn, .icon-button {
@@ -233,7 +252,7 @@ h2 + .question { border-top: 0; padding-top: 4px; }
 .form-status { margin: 12px 0 0; font-weight: 600; }
 .form-status.error { color: var(--bad); }
 .save-bar .form-status { flex-basis: 100%; margin: 0; }
-.format { background: var(--field-bg); color: var(--field-ink); border: 1.5px solid var(--ink); padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 13px; }
+.format { background: var(--surface); color: var(--field-ink); border: 1.5px solid var(--ink); padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 13px; }
 
 .icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.15em; }
