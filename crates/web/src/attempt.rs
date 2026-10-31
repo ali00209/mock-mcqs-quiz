@@ -620,8 +620,12 @@ fn result_note(passed: Option<bool>, correct: u32, total: u32) -> &'static str {
 }
 
 fn review_question(index: usize, q: ReviewQuestion) -> impl IntoView {
+    // Three outcomes: correct, incorrect, and left unanswered (neither right nor wrong).
+    let unanswered = q.selected.is_empty();
     let (class, badge_class, badge_text) = if q.is_correct {
         ("mb-7 border-t-2 border-t-ok bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]", "text-[var(--ok)] border-[var(--ok)]", "Correct")
+    } else if unanswered {
+        ("mb-7 border-t-2 border-t-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]", "text-muted-foreground border-muted-foreground", "Unanswered")
     } else {
         ("mb-7 border-t-2 border-t-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]", "text-[var(--bad)] border-[var(--bad)]", "Incorrect")
     };
