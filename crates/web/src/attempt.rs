@@ -16,7 +16,7 @@ use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::radio_button::{RadioGroup, RadioGroupItem};
 use crate::ui::{self, Ui};
 use crate::kit::ui::button::{Button, ButtonVariant};
-use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselFirst, CarouselItem, CarouselLast, CarouselNext, CarouselPrevious};
+use crate::kit::ui::carousel::{Carousel, CarouselContent, CarouselFirst, CarouselGoTo, CarouselItem, CarouselLast, CarouselNext, CarouselPrevious};
 
 #[derive(Clone, Default)]
 struct Answer {
@@ -494,11 +494,26 @@ fn review_view(ui: Ui, review: AttemptReview) -> impl IntoView {
     let a = review.attempt.clone();
     let retake_quiz = a.quiz_id.clone();
     let passed = a.passed == Some(true);
+    let total = review.questions.len();
+    let index = RwSignal::new(0usize);
+    // Questions answered and marked wrong. The incorrect-answer buttons step through these.
+    let wrong = StoredValue::new(
+        review
+            .questions
+            .iter()
+            .enumerate()
+            .filter(|(_, q)| !q.is_correct && !q.selected.is_empty())
+            .map(|(i, _)| i)
+            .collect::<Vec<usize>>(),
+    );
+    let wrong_count = wrong.with_value(|w| w.len());
     let questions: Vec<_> = review
         .questions
         .into_iter()
         .enumerate()
-        .map(|(i, q)| review_question(i, q))
+        .map(|(i, q)| {
+            view! { <CarouselItem position=i>{review_question(i, q)}</CarouselItem> }.into_any()
+        })
         .collect();
 
     view! {
@@ -528,8 +543,59 @@ fn review_view(ui: Ui, review: AttemptReview) -> impl IntoView {
             <p class="mx-auto mt-3.5 mb-2.5 max-w-[56ch]">{result_note(a.passed, a.correct_count.unwrap_or(0), a.total_count)}</p>
             <div class="text-muted-foreground">{format!("Time taken: {}", ui::fmt_duration(a.duration_ms))}</div>
         </section>
-        {questions}
+        {if total == 0 {
+            view! { <p class="text-muted-foreground">"This attempt has no questions."</p> }.into_any()
+        } else {
+            view! {
+                {(total >= 2).then(|| view! { <CarouselGoTo index=index count=total class="mb-3"/> })}
+                <Carousel index=index count=total>
+                    <CarouselContent>{questions}</CarouselContent>
+                </Carousel>
+                {(total >= 2).then(|| {
+                    view! {
+                        <div class="mb-7 flex flex-wrap items-center gap-2">
+                            <CarouselFirst index=index/>
+                            <CarouselPrevious index=index/>
+                            <CarouselNext index=index count=total/>
+                            <CarouselLast index=index count=total/>
+                        </div>
+                    }
+                })}
+                {(wrong_count > 0).then(|| {
+                    view! {
+                        <div class="mb-7 flex flex-wrap items-center gap-2">
+                            <span class="text-sm text-muted-foreground">{format!("{wrong_count} answered incorrectly")}</span>
+                            <Button variant=ButtonVariant::Outline
+                                attr:aria-disabled=move || wrong.with_value(|w| previous_wrong(w, index.get())).is_none().then_some("true")
+                                on:click=move |_| {
+                                    if let Some(i) = wrong.with_value(|w| previous_wrong(w, index.get_untracked())) {
+                                        index.set(i);
+                                    }
+                                }>"Previous incorrect"</Button>
+                            <Button variant=ButtonVariant::Outline
+                                attr:aria-disabled=move || wrong.with_value(|w| next_wrong(w, index.get())).is_none().then_some("true")
+                                on:click=move |_| {
+                                    if let Some(i) = wrong.with_value(|w| next_wrong(w, index.get_untracked())) {
+                                        index.set(i);
+                                    }
+                                }>"Next incorrect"</Button>
+                        </div>
+                    }
+                })}
+            }
+            .into_any()
+        }}
     }
+}
+
+/// The nearest incorrect question before `from`, if there is one.
+fn previous_wrong(wrong: &[usize], from: usize) -> Option<usize> {
+    wrong.iter().rev().find(|&&i| i < from).copied()
+}
+
+/// The nearest incorrect question after `from`, if there is one.
+fn next_wrong(wrong: &[usize], from: usize) -> Option<usize> {
+    wrong.iter().find(|&&i| i > from).copied()
 }
 
 /// One calm line under the result, in the product's own words.
