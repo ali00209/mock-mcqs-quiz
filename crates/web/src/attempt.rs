@@ -257,7 +257,15 @@ fn attempt_view(
         .into_iter()
         .enumerate()
         .map(|(position, q)| {
-            view! { <CarouselItem position=position>{question_card(session, q, position, one)}</CarouselItem> }.into_any()
+            view! {
+                <CarouselItem
+                    position=position
+                    current=Signal::derive(move || if one { session.index.get() } else { position })
+                >
+                    {question_card(session, q, position, one)}
+                </CarouselItem>
+            }
+            .into_any()
         })
         .collect();
 
@@ -512,7 +520,7 @@ fn review_view(ui: Ui, review: AttemptReview) -> impl IntoView {
         .into_iter()
         .enumerate()
         .map(|(i, q)| {
-            view! { <CarouselItem position=i>{review_question(i, q)}</CarouselItem> }.into_any()
+            view! { <CarouselItem position=i current=index>{review_question(i, q)}</CarouselItem> }.into_any()
         })
         .collect();
 

@@ -385,7 +385,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                             let position = Signal::derive(move || {
                                 draft.with(|d| d.questions.iter().position(|x| x.id == id).unwrap_or(0))
                             });
-                            view! { <CarouselItem position=position>{question_editor(draft, q, question_index)}</CarouselItem> }
+                            view! { <CarouselItem position=position current=question_index>{question_editor(draft, q, question_index)}</CarouselItem> }
                         }
                     />
                 </CarouselContent>

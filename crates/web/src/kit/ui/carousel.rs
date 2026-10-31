@@ -5,11 +5,6 @@ use tw_merge::tw_merge;
 
 use crate::kit::ui::button::{Button, ButtonVariant};
 
-#[derive(Clone, Copy)]
-struct CarouselContext {
-    index: RwSignal<usize>,
-}
-
 /// Arrow keys, Home and End move between slides. Only when the carousel itself has focus,
 /// so typing in a field inside a slide keeps its own arrow keys.
 fn carousel_key(index: RwSignal<usize>, count: Signal<usize>, used: RwSignal<bool>, ev: leptos::ev::KeyboardEvent) {
@@ -46,7 +41,6 @@ pub fn Carousel(
     #[prop(optional, into)] class: String,
     children: Children,
 ) -> impl IntoView {
-    provide_context(CarouselContext { index });
     let used = RwSignal::new(false);
     let merged_class = tw_merge!("relative w-full", class);
     view! {
@@ -90,11 +84,17 @@ pub fn CarouselContent(children: Children, #[prop(optional, into)] class: String
     view! { <div data-name="CarouselContent" class=merged_class>{children()}</div> }
 }
 
-/// A slide. Outside a `Carousel` every item is shown, so one view serves both modes.
+/// A slide. It shows when `current` equals its `position`. Items are built before the carousel
+/// exists, so the current index is passed in rather than read from context. For a list that is
+/// not a carousel, pass the item's own position as `current`, and every item shows.
 #[component]
-pub fn CarouselItem(#[prop(into)] position: Signal<usize>, children: Children, #[prop(optional, into)] class: String) -> impl IntoView {
-    let ctx = use_context::<CarouselContext>();
-    let is_hidden = move || ctx.map(|c| c.index.get() != position.get()).unwrap_or(false);
+pub fn CarouselItem(
+    #[prop(into)] position: Signal<usize>,
+    #[prop(into)] current: Signal<usize>,
+    children: Children,
+    #[prop(optional, into)] class: String,
+) -> impl IntoView {
+    let is_hidden = move || current.get() != position.get();
     view! {
         <div
             data-name="CarouselItem"
