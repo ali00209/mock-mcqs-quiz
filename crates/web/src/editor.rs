@@ -799,7 +799,9 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                 aria-modal="true"
                 aria-labelledby="text-dialog-title"
                 aria-describedby="text-dialog-description"
-                class="fixed top-1/2 left-1/2 z-[70] flex w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-md border bg-card p-6 text-card-foreground shadow-lg"
+                // ScrollArea: the scroll lock leaves this dialog alone, so it can scroll on a phone.
+                data-name="ScrollArea"
+                class="fixed top-1/2 left-1/2 z-[70] flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-md border bg-card p-6 text-card-foreground shadow-lg"
                 on:keydown=move |ev: leptos::ev::KeyboardEvent| {
                     if ev.key() == "Escape" {
                         close_now();
@@ -813,7 +815,7 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                 <Textarea
                     id="text-dialog-textarea"
                     rows=12u32
-                    class="bg-[#ffffff] min-h-72"
+                    class="bg-[#ffffff] max-h-[45dvh] min-h-72 overflow-y-auto"
                     placeholder="Paste your questions here"
                     bind_value=text
                 />
