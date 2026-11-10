@@ -44,7 +44,7 @@ pub fn DropdownMenuContent(children: ChildrenFn) -> impl IntoView {
             <div class="fixed inset-0 z-40" aria-hidden="true" on:click=move |_| ctx.open.set(false)></div>
             <div
                 role="menu"
-                class="absolute top-full right-0 z-50 mt-1 flex min-w-48 flex-col border-2 border-ink bg-surface p-1 shadow-lg"
+                class="absolute top-full right-0 z-50 mt-1 flex min-w-48 flex-col border border-rule bg-surface p-1 shadow-lg"
                 on:click=move |_| ctx.open.set(false)
                 on:keydown=move |ev| {
                     if ev.key() == "Escape" {

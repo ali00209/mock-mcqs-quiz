@@ -68,8 +68,8 @@ pub fn Editor(ui: Ui, id: String) -> impl IntoView {
         Some(Ok(quiz)) if quiz.source == QuizSource::Sample => {
             let id = quiz.id.clone();
             view! {
-                <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
-                    <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">{quiz.title.clone()}</h1>
+                <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+                    <h1 class="m-0 mb-1.5 font-display font-stretch-[100%] font-bold  text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">{quiz.title.clone()}</h1>
                     <p class="text-muted-foreground">"Sample quizzes are read-only. Make an editable copy to change it."</p>
                     <Button variant=ButtonVariant::Default on:click=move |_| copy_for_editing(ui, id.clone())>
                         "Make an editable copy"
@@ -303,8 +303,8 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
     });
 
     view! {
-        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4">
-            <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Edit quiz"</h1>
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[3px] border-primary pt-4">
+            <h1 class="m-0 mb-1.5 font-display font-stretch-[100%] font-bold  text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Edit quiz"</h1>
         </div>
         <Stepper total_steps=3>
             <StepRequest request=step_request/>
@@ -339,22 +339,22 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 })
             }}
             <FormStep step=0>
-        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
-            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Details"</h2>
+        <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Details"</h2>
             <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Title"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Title"</span>
                 <Input bind_value=title/>
             </label>
             <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Description"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Description"</span>
                 <Textarea rows=3u32 bind_value=description/>
             </label>
             <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Category"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Category"</span>
                 <Input bind_value=category/>
             </label>
             <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Tags (comma separated)"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Tags (comma separated)"</span>
                 <Input bind_value=tags_text/>
             </label>
         </section>
@@ -363,8 +363,8 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
 
             {text_import(ui, draft)}
 
-        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
-            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Questions"</h2>
+        <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Questions"</h2>
             {move || {
                 (question_count.get() == 0).then(|| {
                     view! {
@@ -420,14 +420,14 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             </FormStep>
             <FormStep step=2>
 
-        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
-            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Settings"</h2>
+        <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Settings"</h2>
             <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Time limit in minutes (blank for none)"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Time limit in minutes (blank for none)"</span>
                 <Input r#type=InputType::Number min="0" bind_value=minutes_text/>
             </label>
             <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Pass mark in percent (blank for none)"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Pass mark in percent (blank for none)"</span>
                 <Input r#type=InputType::Number min="0" max="100" bind_value=pass_text/>
             </label>
             <label class="mb-2.5 flex items-center gap-2.5">
@@ -452,7 +452,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 <span>"Show one question at a time"</span>
             </label>
             <div class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Answer feedback"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Answer feedback"</span>
                 <Select
                     aria_label="Answer feedback"
                     value=feedback
@@ -460,7 +460,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             </div>
         </section>
             </FormStep>
-            <div class="sticky bottom-0 z-[3] mt-2 flex w-full basis-full flex-wrap items-center justify-between gap-2 border-t-2 border-ink bg-background py-3.5">
+            <div class="sticky bottom-0 z-[3] mt-2 flex w-full basis-full flex-wrap items-center justify-between gap-2 border-t border-rule bg-background py-3.5">
                 <StepNav/>
                 <div class="flex flex-wrap items-center gap-2">
                 <span class="text-sm text-muted-foreground" role="status">{move || if dirty.get() { "Unsaved changes" } else { "All changes saved" }}</span>
@@ -497,9 +497,9 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question, question_index: RwSignal<
     let kind = RwSignal::new(kind_name(draft, &q.id).to_string());
 
     view! {
-        <div class="mb-0 border-t-[1.5px] border-ink py-[18px] [h2+&]:border-t-0 [h2+&]:pt-1">
+        <div class="mb-0 border-t border-rule py-[18px] [h2+&]:border-t-0 [h2+&]:pt-1">
             <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h3 class="m-0 font-display font-stretch-[112%] text-[15px] font-extrabold uppercase tracking-[0.06em]">{move || format!("Question {}", index() + 1)}</h3>
+                <h3 class="m-0 font-display font-stretch-[100%] text-[15px] font-extrabold  tracking-[0.06em]">{move || format!("Question {}", index() + 1)}</h3>
                 <div class="flex flex-wrap items-center gap-2">
                     <Button variant=ButtonVariant::Outline attr:disabled=move || index() == 0
                         attr:aria-label=move || format!("Move question {} up", index() + 1)
@@ -521,11 +521,11 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question, question_index: RwSignal<
                 </div>
             </div>
             <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Prompt"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Prompt"</span>
                 <Textarea rows=2u32 bind_value=prompt/>
             </label>
             <div class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Type"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Type"</span>
                 <Select
                     aria_label="Question type"
                     value=kind
@@ -547,7 +547,7 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question, question_index: RwSignal<
                 </Button>
             </div>
             <label class="mb-3.5 flex flex-col gap-1.5">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Explanation (shown after submitting)"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Explanation (shown after submitting)"</span>
                 <Textarea rows=2u32 bind_value=explanation/>
             </label>
         </div>
@@ -776,14 +776,14 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
     };
 
     view! {
-        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
-            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Import questions from text"</h2>
+        <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Import questions from text"</h2>
             <p class="text-muted-foreground">
                 "Paste questions and answers. Put * after each correct option. The quiz title and settings are set in the fields above."
             </p>
             <details>
                 <summary>"Show the format"</summary>
-                <pre class="whitespace-pre overflow-x-auto border-[1.5px] border-ink bg-surface p-3 font-mono text-[13px] text-field-ink">{FORMAT_HELP}</pre>
+                <pre class="whitespace-pre overflow-x-auto rounded-xl border border-rule bg-surface p-3 font-mono text-[13px] text-field-ink">{FORMAT_HELP}</pre>
             </details>
             <div class="flex flex-wrap items-center gap-2">
                 <Button variant=ButtonVariant::Outline on:click=move |ev: leptos::ev::MouseEvent| open_text(ev)>
@@ -835,7 +835,7 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                             .collect();
                         let count = names.len();
                         view! {
-                            <div class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+                            <div class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
                                 <p class="mb-2.5">{format!("Found {count} question(s):")}</p>
                                 <ol>{names.into_iter().map(|name| view! { <li>{name}</li> }).collect_view()}</ol>
                                 <div class="flex flex-wrap items-center gap-2">

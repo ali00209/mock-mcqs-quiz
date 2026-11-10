@@ -189,14 +189,14 @@ pub fn CarouselGoTo(
     view! {
         <div class=merged_class>
             <label class="flex items-center gap-2">
-                <span class="font-display font-stretch-[112%] text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">"Go to question"</span>
+                <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Go to question"</span>
                 <input
                     type="number"
                     inputmode="numeric"
                     min="1"
                     max=move || count.get().max(1).to_string()
                     disabled=move || count.get() == 0
-                    class="h-9 w-20 border-2 border-ink bg-field-bg px-3 font-mono text-field-ink disabled:opacity-50"
+                    class="h-9 w-20 border border-rule bg-field-bg px-3 font-mono text-field-ink disabled:opacity-50"
                     prop:value=move || text.get()
                     on:input=move |ev| {
                         let typed = event_target_value(&ev);

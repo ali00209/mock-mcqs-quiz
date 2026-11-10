@@ -35,15 +35,16 @@
   --color-destructive: var(--bad);
   --color-destructive-foreground: #ffffff;
   --color-border: var(--ink);
+  --color-rule: var(--line);
   --color-input: var(--surface);
   --color-ring: var(--accent);
 
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 24px;
 
   --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -51,26 +52,28 @@
 
 
 /* Colour tokens: light by default, dark when the system asks for it. */
+/* Colour tokens: a calm study palette, light by default, dark when the system asks for it. */
 :root {
-  --bg: #e4e6e6;
-  --surface: #f4f5f5;
-  --ink: #15171c;
-  --muted: #565d68;
-  --topbar: #1f4aa0;
-  --accent: #1f4aa0;
-  --accent-deep: #163a85;
-  --accent-tint: #d6e0f5;
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --ink: #1b2233;
+  --muted: #5d6679;
+  --line: #dfe3ee;
+  --topbar: #2f3a8f;
+  --accent: #4b57d6;
+  --accent-deep: #3a45b8;
+  --accent-tint: #e9ebfb;
   --accent-text: #ffffff;
-  --ok: #1f7a4a;
-  --bad: #b3261e;
-  --warn: #8a5a0b;
+  --ok: #17794a;
+  --bad: #c2352d;
+  --warn: #9a6512;
   /* Fields, choices and chips: light here, dark in dark mode (below). */
   --field-bg: #ffffff;
-  --field-ink: #15171c;
-  --tint: #d6e0f5;
-  --radius: 0px;
-  --rule: 2px;
-  --shadow: 0 10px 24px rgba(10, 20, 40, 0.18);
+  --field-ink: #1b2233;
+  --tint: #e9ebfb;
+  --radius: 12px;
+  --rule: 1px;
+  --shadow: 0 1px 2px rgba(27, 34, 51, 0.06), 0 8px 24px rgba(27, 34, 51, 0.08);
   --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   color-scheme: light;
@@ -78,22 +81,23 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e1320;
-    --surface: #171f31;
-    --ink: #eef1f8;
-    --muted: #a7b0c4;
-    --topbar: #1b2d5e;
-    --accent: #6f90e8;
-    --accent-deep: #8fa8ef;
-    --accent-tint: #1f2c4d;
-    --accent-text: #0b1020;
-    --ok: #4cc27c;
-    --bad: #ef6b6b;
-    --warn: #e0a84f;
-    --field-bg: #1b2437;
-    --field-ink: #eef1f8;
-    --tint: #1f2c4d;
-    --shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+    --bg: #0d1120;
+    --surface: #161c2e;
+    --ink: #e8ebf5;
+    --muted: #9ba4ba;
+    --line: #2a3350;
+    --topbar: #1c2358;
+    --accent: #8d93f5;
+    --accent-deep: #aab0ff;
+    --accent-tint: #222a4a;
+    --accent-text: #0b0e1d;
+    --ok: #5cc98a;
+    --bad: #f07a72;
+    --warn: #e7b35c;
+    --field-bg: #1b2238;
+    --field-ink: #e8ebf5;
+    --tint: #222a4a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
     color-scheme: dark;
   }
 }

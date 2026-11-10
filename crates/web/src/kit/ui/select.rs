@@ -31,7 +31,7 @@ pub fn Select(
                 aria-label=aria_label
                 aria-haspopup="listbox"
                 aria-expanded=move || open.get().to_string()
-                class="flex h-10 w-full cursor-pointer items-center justify-between gap-2 border-2 border-ink bg-field-bg px-3 text-left text-sm text-field-ink"
+                class="flex h-10 w-full cursor-pointer items-center justify-between gap-2 border border-rule bg-field-bg px-3 text-left text-sm text-field-ink"
                 on:click=move |_| open.update(|o| *o = !*o)
             >
                 <span class="truncate">{label}</span>
@@ -39,7 +39,7 @@ pub fn Select(
             </button>
             <Show when=move || open.get()>
                 <div class="fixed inset-0 z-40" aria-hidden="true" on:click=move |_| open.set(false)></div>
-                <ul role="listbox" class="absolute top-full right-0 left-0 z-50 mt-1 flex flex-col border-2 border-ink bg-surface p-1 shadow-lg">
+                <ul role="listbox" class="absolute top-full right-0 left-0 z-50 mt-1 flex flex-col border border-rule bg-surface p-1 shadow-lg">
                     {move || {
                         options.with_value(|list| {
                             list.iter()

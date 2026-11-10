@@ -95,7 +95,7 @@ fn App() -> impl IntoView {
         <ui::ConfirmDialog ui=ui/>
         <Toaster/>
         <nav class="mx-auto flex max-w-[960px] flex-wrap items-center justify-between gap-3 px-4 pt-4" aria-label="Pages">
-            <span class="font-display font-stretch-[125%] font-black text-lg uppercase tracking-[-0.01em] text-ink">"MockTest"</span>
+            <span class="font-display font-stretch-[100%] font-bold text-lg  tracking-[-0.01em] text-ink">"MockTest"</span>
             <div class="flex flex-wrap gap-1.5">
                 <a href="#/" class={move || tab_class(page.get() == Page::Library)} aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
                 <a href="#/history" class={move || tab_class(page.get() == Page::History)} aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
@@ -106,8 +106,8 @@ fn App() -> impl IntoView {
             {move || {
                 temporary.get().then(|| {
                     view! {
-                        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]" role="status">
-                            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Progress is not kept in this browser"</h2>
+                        <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]" role="status">
+                            <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Progress is not kept in this browser"</h2>
                             <p class="text-muted-foreground">
                                 "This browser can't save data between visits. Quizzes, answers and history last only until you close this page. Use Chrome, Edge or another browser to keep them."
                             </p>
@@ -142,8 +142,8 @@ fn Library(ui: Ui) -> impl IntoView {
     });
 
     view! {
-        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4">
-            <h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Your quizzes"</h1>
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[3px] border-primary pt-4">
+            <h1 class="m-0 mb-1.5 font-display font-stretch-[100%] font-bold  text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Your quizzes"</h1>
             <div class="flex flex-wrap items-center gap-2">
                 <Button variant=ButtonVariant::Default on:click=move |_| new_quiz(ui)>"New quiz"</Button>
                 <Button variant=ButtonVariant::Outline on:click=move |_| import_quiz(ui)>"Import"</Button>
@@ -154,7 +154,7 @@ fn Library(ui: Ui) -> impl IntoView {
             Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
             Some(Ok(bootstrap)) if bootstrap.quizzes.is_empty() => view! {
                 <section class="mb-7 border-t-0 bg-surface px-[18px] py-10 text-center [overflow-wrap:anywhere]">
-                    <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"No quizzes yet"</h2>
+                    <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"No quizzes yet"</h2>
                     <p class="mx-auto mb-4 max-w-[56ch] text-muted-foreground">"Write your own questions, paste them as plain text, or import a quiz file you already have. Your quizzes stay in this browser."</p>
                     <div class="flex flex-wrap items-center gap-2">
                         <Button variant=ButtonVariant::Default on:click=move |_| new_quiz(ui)>"New quiz"</Button>
@@ -198,9 +198,9 @@ fn Library(ui: Ui) -> impl IntoView {
 
 fn tab_class(active: bool) -> &'static str {
     if active {
-        "inline-flex h-9 items-center border-2 border-ink bg-primary px-4 font-display font-stretch-[112%] font-black text-sm uppercase tracking-[-0.01em] text-primary-foreground no-underline"
+        "inline-flex h-9 items-center rounded-full border border-primary bg-primary px-4 font-display font-stretch-[100%] font-bold text-sm  tracking-[-0.01em] text-primary-foreground no-underline"
     } else {
-        "inline-flex h-9 items-center border-2 border-ink bg-field-bg px-4 font-display font-stretch-[112%] font-black text-sm uppercase tracking-[-0.01em] text-field-ink no-underline hover:bg-ink hover:text-surface"
+        "inline-flex h-9 items-center rounded-full border border-rule bg-field-bg px-4 font-display font-stretch-[100%] font-bold text-sm  tracking-[-0.01em] text-field-ink no-underline hover:bg-ink hover:text-surface"
     }
 }
 
@@ -247,10 +247,10 @@ fn quiz_row(ui: Ui, q: QuizSummary) -> impl IntoView {
     let delete_title = StoredValue::new(q.title.clone());
 
     view! {
-        <TableRow class="max-sm:mb-4 max-sm:block max-sm:border-2 max-sm:border-ink max-sm:p-3">
+        <TableRow class="max-sm:mb-4 max-sm:block max-sm:border max-sm:border-rule max-sm:rounded-xl max-sm:p-3">
             <TableCell class="whitespace-normal max-sm:block max-sm:p-1">
                 <div class="flex flex-wrap items-center gap-1.5">
-                    <span class="font-display font-stretch-[112%] font-extrabold uppercase tracking-[0.02em] [overflow-wrap:anywhere]">{q.title.clone()}</span>
+                    <span class="font-display font-stretch-[100%] font-extrabold  tracking-[0.02em] [overflow-wrap:anywhere]">{q.title.clone()}</span>
                     {is_sample.then(|| view! { <Badge variant=BadgeVariant::Secondary>"Sample"</Badge> })}
                     {(!ready).then(|| view! { <Badge variant=BadgeVariant::Outline class="text-[var(--warn)] border-[var(--warn)]">"Incomplete"</Badge> })}
                 </div>
@@ -386,13 +386,13 @@ fn History(ui: Ui) -> impl IntoView {
     });
 
     view! {
-        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"History"</h1></div>
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[3px] border-primary pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[100%] font-bold  text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"History"</h1></div>
         {move || match data.get() {
             None => ui::loading("Loading history").into_any(),
             Some(Err(error)) => view! { <p class="text-bad">{error}</p> }.into_any(),
             Some(Ok(bootstrap)) if bootstrap.attempts.is_empty() => view! {
                 <section class="mb-7 border-t-0 bg-surface px-[18px] py-10 text-center [overflow-wrap:anywhere]">
-                    <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"No attempts yet"</h2>
+                    <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"No attempts yet"</h2>
                     <p class="mx-auto mb-4 max-w-[56ch] text-muted-foreground">"Start a quiz from the Library. Your answers and scores are kept here, even after you close the tab."</p>
                     <Button variant=ButtonVariant::Default href="#/".to_string()>"Go to the Library"</Button>
                 </section>
@@ -481,19 +481,19 @@ fn history_row(a: AttemptSummary) -> impl IntoView {
 #[component]
 fn Data(ui: Ui) -> impl IntoView {
     view! {
-        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[6px] border-ink pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[125%] font-black uppercase text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Data"</h1></div>
-        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
-            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Backup"</h2>
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[3px] border-primary pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[100%] font-bold  text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Data"</h1></div>
+        <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Backup"</h2>
             <p class="text-muted-foreground">"Save all quizzes and attempt history to a file you can restore later."</p>
             <Button variant=ButtonVariant::Default on:click=move |_| backup(ui)>"Download backup"</Button>
         </section>
-        <section class="mb-7 border-t-2 border-ink bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
-            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Restore"</h2>
+        <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Restore"</h2>
             <p class="text-muted-foreground">"Replaces all current quizzes and history with the contents of a backup file."</p>
             <Button variant=ButtonVariant::Outline on:click=move |_| restore(ui)>"Restore from backup…"</Button>
         </section>
         <section class="mb-7 border-t-2 border-bad bg-surface px-5 pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
-            <h2 class="m-0 mb-3 font-display font-stretch-[112%] font-extrabold uppercase text-[15px] leading-[1.3] tracking-[0.06em]">"Reset"</h2>
+            <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Reset"</h2>
             <p class="text-muted-foreground">"Deletes all quizzes and history."</p>
             <Button variant=ButtonVariant::Destructive on:click=move |_| reset(ui)>"Reset everything"</Button>
         </section>
