@@ -311,7 +311,7 @@ fn attempt_view(
         } else {
             view! { <div>{cards}</div> }.into_any()
         }}
-        <div class="flex flex-wrap items-center gap-2 justify-between mt-3">
+        <div class="sticky bottom-0 z-[3] mt-2 flex w-full basis-full flex-col gap-3 border-t border-rule bg-background py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
             {(one && total >= 2).then(|| {
                 view! {
                     <div class="flex flex-wrap items-center gap-2">
@@ -322,8 +322,10 @@ fn attempt_view(
                     </div>
                 }
             })}
-            <Button variant=ButtonVariant::Destructive on:click=move |_| quit()>"Quit attempt"</Button>
-            <Button variant=ButtonVariant::Default class="ml-auto" on:click=move |_| submit()>"Submit attempt"</Button>
+            <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:ml-auto">
+                <Button variant=ButtonVariant::Destructive class="w-full sm:w-auto" on:click=move |_| quit()>"Quit attempt"</Button>
+                <Button variant=ButtonVariant::Default class="col-span-2 w-full sm:w-auto" on:click=move |_| submit()>"Submit attempt"</Button>
+            </div>
         </div>
     }
 }
