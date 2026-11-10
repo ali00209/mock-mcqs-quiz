@@ -232,9 +232,15 @@ pub fn go(hash: &str) {
 
 /// Navigates without asking the leave guard. Used once the person has chosen to leave.
 pub fn go_unguarded(target: &str) {
+    BYPASS_GUARD.with(|b| b.set(true));
     if self::hash() != target.trim_start_matches('#') {
-        BYPASS_GUARD.with(|b| b.set(true));
         go(target);
+    } else {
+        // The guard runs after the address has already changed, so the address can
+        // match the target and no hashchange will fire. Raise one so the page still changes.
+        if let Ok(event) = web_sys::Event::new("hashchange") {
+            let _ = win().dispatch_event(&event);
+        }
     }
 }
 

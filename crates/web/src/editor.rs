@@ -203,11 +203,11 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                         },
                         AfterSave::Library => {
                             ui.notify("Quiz saved.", false);
-                            ui::go("#/");
+                            ui::go_unguarded("#/");
                         }
                         AfterSave::Go(destination) => {
                             ui.notify("Quiz saved.", false);
-                            ui::go(&destination);
+                            ui::go_unguarded(&destination);
                         }
                     }
                 }
