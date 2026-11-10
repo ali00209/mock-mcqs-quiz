@@ -14,6 +14,12 @@ pub fn cross() -> impl IntoView {
     }
 }
 
+pub fn flag() -> impl IntoView {
+    view! {
+        <svg class="size-[1em] fill-none stroke-current stroke-2 align-[-0.15em] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h12l-2.5 4 2.5 4H5"/></svg>
+    }
+}
+
 pub fn dot() -> impl IntoView {
     view! {
         <svg class="size-[1em] fill-none stroke-current stroke-2 align-[-0.15em] [stroke-linecap:round] [stroke-linejoin:round]" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"/></svg>

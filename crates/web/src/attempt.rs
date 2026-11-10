@@ -35,6 +35,8 @@ struct Session {
     problem: RwSignal<Option<String>>,
     /// Questions whose answer has been judged in "answer on the go" mode and can no longer be changed.
     locks: RwSignal<HashMap<String, bool>>,
+    /// Correct option ids per question. Empty for a question when the quiz gives no feedback on the go.
+    correct: RwSignal<HashMap<String, Vec<String>>>,
 }
 
 impl Session {
@@ -106,6 +108,7 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
     let now = RwSignal::new(ui::now_ms());
     let problem = RwSignal::new(None::<String>);
     let locks = RwSignal::new(HashMap::<String, bool>::new());
+    let correct = RwSignal::new(HashMap::<String, Vec<String>>::new());
     let session = Session {
         attempt_id: StoredValue::new(id.clone()),
         answers,
@@ -113,6 +116,7 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
         now,
         problem,
         locks,
+        correct,
     };
 
     // Opening the attempt restarts its clock, if the user left it paused.
@@ -130,6 +134,13 @@ pub fn Attempt(ui: Ui, id: String) -> impl IntoView {
                     })
                     .collect();
                 answers.set(saved);
+                correct.set(
+                    view.questions
+                        .iter()
+                        .filter(|q| !q.correct_option_ids.is_empty())
+                        .map(|q| (q.id.clone(), q.correct_option_ids.clone()))
+                        .collect(),
+                );
                 state.set(Some(Ok(view)));
             }
             (Ok(()), Ok(view)) => ui::go(&format!("#/review/{}", view.id)),
@@ -292,6 +303,7 @@ fn attempt_view(
                         .map(|(position, qid)| nav_button(session, qid.clone(), position))
                         .collect_view()}
                 </nav>
+                <p class="mb-4 text-[13px] text-muted-foreground">"Blue: answered. Amber: flagged. Green and red appear as you answer, only when the quiz gives feedback as you go."</p>
             }
         })}
         {if one {
@@ -326,29 +338,49 @@ fn nav_label(session: Session, qid: &str, position: usize) -> String {
     label
 }
 
+/// Colour of a question's number. Correct or wrong once judged (quizzes that give feedback
+/// as the reader goes), amber when flagged and unanswered, blue when answered, plain otherwise.
+fn nav_class(session: Session, qid: &str, position: usize) -> String {
+    let answer = session.answer(qid);
+    let current = session.index.get() == position;
+    let judged: Option<bool> = session.correct.with(|map| {
+        map.get(qid).and_then(|ids| {
+            // Judged only once every correct option is picked, as the question card does.
+            if answer.selected.len() < ids.len() {
+                return None;
+            }
+            let mut ids = ids.clone();
+            ids.sort();
+            let mut chosen = answer.selected.clone();
+            chosen.sort();
+            Some(ids == chosen)
+        })
+    });
+    let fill = match judged {
+        Some(true) => "bg-ok border-ok text-background",
+        Some(false) => "bg-bad border-bad text-background",
+        None if answer.flagged && answer.selected.is_empty() => "bg-warn border-warn text-background",
+        None if !answer.selected.is_empty() => "bg-primary border-primary text-primary-foreground",
+        None => "bg-field-bg border-rule text-field-ink hover:bg-muted",
+    };
+    let mut class = format!(
+        "shrink-0 min-h-11 min-w-11 p-0 border font-mono text-sm font-semibold normal-case tracking-normal cursor-pointer hover:not-disabled:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 {fill}"
+    );
+    // A flagged question that has an answer keeps an amber bar under its number.
+    if answer.flagged && !answer.selected.is_empty() {
+        class.push_str(" shadow-[inset_0_-4px_0_var(--warn)]");
+    }
+    if current {
+        class.push_str(" ring-2 ring-primary ring-offset-2 ring-offset-background");
+    }
+    class
+}
+
 fn nav_button(session: Session, qid: String, position: usize) -> impl IntoView {
     let label_qid = qid.clone();
     view! {
         <Button
-            class=move || {
-                let answer = session.answer(&qid);
-                let current = session.index.get() == position;
-                let mut class = String::from("shrink-0 min-h-11 min-w-11 p-0 border border-rule bg-field-bg font-mono text-sm font-semibold normal-case tracking-normal text-field-ink cursor-pointer hover:not-disabled:bg-ink hover:not-disabled:text-surface disabled:cursor-not-allowed disabled:opacity-50");
-                if !answer.selected.is_empty() {
-                    class.push_str(" bg-muted");
-                }
-                if current {
-                    class.push_str(" bg-primary border-primary text-primary-foreground");
-                }
-                if answer.flagged {
-                    class.push_str(if current {
-                        " border-[#8a5a0b] text-primary-foreground"
-                    } else {
-                        " border-[#8a5a0b] text-[#8a5a0b]"
-                    });
-                }
-                class
-            }
+            class=move || nav_class(session, &qid, position)
             attr:aria-label=move || nav_label(session, &label_qid, position)
             attr:aria-current=move || if session.index.get() == position { "step" } else { "false" }
             on:click=move |_| session.index.set(position)>
@@ -465,17 +497,28 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
     };
 
     view! {
-        <section class="mb-[18px] bg-surface p-0 [overflow-wrap:anywhere]" class:hidden=move || one && session.index.get() != position>
+        <section class="mb-[18px] rounded-2xl border border-rule bg-surface p-5 shadow-sm [overflow-wrap:anywhere]" class:hidden=move || one && session.index.get() != position>
             <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 class="m-0 font-display font-stretch-[100%] text-[15px] font-extrabold  tracking-[0.06em]">{format!("Question {}", position + 1)}</h2>
                 <span class="text-muted-foreground">{if kind == QuestionKind::Single { "Choose one" } else { "Choose all that apply" }}</span>
-                <label class="flex cursor-pointer items-center gap-1.5 text-[13px] text-muted-foreground">
-                    <Checkbox
-                        aria_label="Flag this question"
-                        checked=Signal::derive(move || session.answer(&qid.get_value()).flagged)
-                        on_checked_change=Callback::new(move |v: bool| session.set_flag(&qid.get_value(), v))/>
+                <button
+                    type="button"
+                    aria-label="Flag this question"
+                    aria-pressed=move || session.answer(&qid.get_value()).flagged.to_string()
+                    title="Flag this question"
+                    class=move || if session.answer(&qid.get_value()).flagged {
+                        "inline-flex h-9 items-center gap-1.5 rounded-full border border-warn bg-warn px-3 font-display font-bold text-sm text-background cursor-pointer"
+                    } else {
+                        "inline-flex h-9 items-center gap-1.5 rounded-full border border-rule bg-field-bg px-3 font-display font-bold text-sm text-field-ink cursor-pointer hover:bg-muted"
+                    }
+                    on:click=move |_| {
+                        let flagged = session.answer(&qid.get_value()).flagged;
+                        session.set_flag(&qid.get_value(), !flagged);
+                    }
+                >
+                    {icons::flag()}
                     "Flag"
-                </label>
+                </button>
             </div>
             <p class="mt-2 mb-4 whitespace-pre-wrap text-[17px] leading-[1.5] [overflow-wrap:anywhere]">{q.prompt}</p>
             {options}

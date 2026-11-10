@@ -392,11 +392,11 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
                 {move || {
                     (question_count.get() >= 2).then(|| {
                         view! {
-                            <div class="flex flex-wrap items-center gap-2">
-                                <CarouselFirst index=question_index/>
-                                <CarouselPrevious index=question_index/>
-                                <CarouselNext index=question_index count=question_count/>
-                                <CarouselLast index=question_index count=question_count/>
+                            <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                                <CarouselFirst index=question_index class="w-full sm:w-auto"/>
+                                <CarouselPrevious index=question_index class="w-full sm:w-auto"/>
+                                <CarouselNext index=question_index count=question_count class="w-full sm:w-auto"/>
+                                <CarouselLast index=question_index count=question_count class="w-full sm:w-auto"/>
                             </div>
                         }
                     })
@@ -404,6 +404,7 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             </Carousel>
             <Button
                 variant=ButtonVariant::Outline
+                class="w-full sm:w-auto"
                 attr:disabled={move || draft.with(|q| q.questions.len() >= MAX_QUESTIONS)}
                 on:click=move |_| {
                     draft.update(|q| q.questions.push(Question::blank()));
@@ -460,13 +461,13 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
             </div>
         </section>
             </FormStep>
-            <div class="sticky bottom-0 z-[3] mt-2 flex w-full basis-full flex-wrap items-center justify-between gap-2 border-t border-rule bg-background py-3.5">
+            <div class="sticky bottom-0 z-[3] mt-2 flex w-full basis-full flex-col gap-3 border-t border-rule bg-background py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
                 <StepNav/>
-                <div class="flex flex-wrap items-center gap-2">
-                <span class="text-sm text-muted-foreground" role="status">{move || if dirty.get() { "Unsaved changes" } else { "All changes saved" }}</span>
-                <Button variant=ButtonVariant::Outline attr:disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</Button>
-                <Button variant=ButtonVariant::Outline on:click=move |_| exit()>"Exit without saving"</Button>
-                <Button variant=ButtonVariant::Default attr:disabled=move || saving.get() on:click=move |_| save()>
+                <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                <span class="col-span-2 text-sm text-muted-foreground" role="status">{move || if dirty.get() { "Unsaved changes" } else { "All changes saved" }}</span>
+                <Button variant=ButtonVariant::Outline class="w-full sm:w-auto" attr:disabled=move || saving.get() on:click=move |_| start()>"Start quiz"</Button>
+                <Button variant=ButtonVariant::Outline class="w-full sm:w-auto" on:click=move |_| exit()>"Exit without saving"</Button>
+                <Button variant=ButtonVariant::Default class="col-span-2 w-full sm:w-auto" attr:disabled=move || saving.get() on:click=move |_| save()>
                     {move || if saving.get() { "Saving…" } else { "Save quiz" }}
                 </Button>
                 </div>
@@ -575,7 +576,7 @@ fn option_row(draft: RwSignal<Quiz>, qid: StoredValue<String>, o: AnswerOption) 
         }
     });
     view! {
-        <div class="mb-2 grid grid-cols-[auto_1fr_auto] items-center gap-2 max-[600px]:grid-cols-[auto_1fr]">
+        <div class="mb-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
             <label class="flex items-center gap-1.5 whitespace-nowrap text-[13px] text-muted-foreground">
                 <Checkbox
                     aria_label="Correct answer"
