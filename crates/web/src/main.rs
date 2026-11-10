@@ -3,6 +3,7 @@ mod attempt;
 mod editor;
 mod kit;
 mod icons;
+mod palette;
 mod ui;
 
 use leptos::prelude::*;
@@ -47,6 +48,7 @@ fn current_page() -> Page {
 fn main() {
     console_error_panic_hook::set_once();
     kit::hooks::use_scroll_lock::init();
+    palette::init();
     leptos::mount::mount_to_body(App);
 }
 
@@ -101,6 +103,7 @@ fn App() -> impl IntoView {
                 <a href="#/history" class={move || tab_class(page.get() == Page::History)} aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
                 <a href="#/data" class={move || tab_class(page.get() == Page::Data)} aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
             </div>
+            <palette::PalettePicker/>
         </nav>
         <main class="mx-auto max-w-[960px] px-4 pt-7 pb-[72px]">
             {move || {

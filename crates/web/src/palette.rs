@@ -1,0 +1,89 @@
+use leptos::prelude::*;
+use web_sys::Storage;
+
+const STORAGE_KEY: &str = "palette";
+
+/// Colour schemes the reader can choose from: (key, label, swatch colour).
+/// The first entry is the default and has no `data-palette` attribute.
+pub const PALETTES: [(&str, &str, &str); 4] = [
+    ("indigo", "Indigo", "#4b57d6"),
+    ("ocean", "Ocean", "#0f7c8c"),
+    ("forest", "Forest", "#2f7d4f"),
+    ("sepia", "Sepia", "#9a5b2e"),
+];
+
+fn storage() -> Option<Storage> {
+    crate::ui::win().local_storage().ok().flatten()
+}
+
+/// The palette saved in this browser, or the default when none is saved.
+fn saved_key() -> &'static str {
+    let saved = storage()
+        .and_then(|store| store.get_item(STORAGE_KEY).ok().flatten())
+        .unwrap_or_default();
+    PALETTES
+        .iter()
+        .map(|palette| palette.0)
+        .find(|key| *key == saved.as_str())
+        .unwrap_or(PALETTES[0].0)
+}
+
+/// Applies a palette to the page by setting `data-palette` on the root element.
+fn apply(key: &str) {
+    let Some(root) = crate::ui::win().document().and_then(|doc| doc.document_element()) else {
+        return;
+    };
+    if key == PALETTES[0].0 {
+        let _ = root.remove_attribute("data-palette");
+    } else {
+        let _ = root.set_attribute("data-palette", key);
+    }
+}
+
+/// Restores the saved palette. Call once at startup, before the first render.
+pub fn init() {
+    apply(saved_key());
+}
+
+#[component]
+pub fn PalettePicker() -> impl IntoView {
+    let current = RwSignal::new(saved_key());
+
+    view! {
+        <div class="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Colour scheme">
+            {PALETTES
+                .iter()
+                .map(|&(key, label, swatch)| {
+                    view! {
+                        <button
+                            type="button"
+                            role="radio"
+                            aria-checked=move || (current.get() == key).to_string()
+                            title=label
+                            class=move || {
+                                if current.get() == key {
+                                    "inline-flex h-9 items-center gap-2 rounded-full border border-primary bg-muted px-3 font-display font-bold text-sm text-ink cursor-pointer"
+                                } else {
+                                    "inline-flex h-9 items-center gap-2 rounded-full border border-rule bg-field-bg px-3 font-display font-bold text-sm text-field-ink cursor-pointer hover:bg-muted"
+                                }
+                            }
+                            on:click=move |_| {
+                                current.set(key);
+                                if let Some(store) = storage() {
+                                    let _ = store.set_item(STORAGE_KEY, key);
+                                }
+                                apply(key);
+                            }
+                        >
+                            <span
+                                class="inline-block size-3.5 rounded-full border border-rule"
+                                style=format!("background-color: {swatch}")
+                            ></span>
+                            {label}
+                        </button>
+                    }
+                })
+                .collect_view()}
+        </div>
+    }
+}
