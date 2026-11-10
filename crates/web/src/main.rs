@@ -24,7 +24,7 @@ use kit::ui::table::{Table, TableBody, TableCell, TableHead, TableHeader, TableR
 enum Page {
     Library,
     History,
-    Data,
+    Settings,
     Edit(String),
     Attempt(String),
     Review(String),
@@ -37,7 +37,7 @@ fn current_page() -> Page {
     match parts.as_slice() {
         [] => Page::Library,
         ["history"] => Page::History,
-        ["data"] => Page::Data,
+        ["settings"] | ["data"] => Page::Settings,
         ["edit", id] => Page::Edit(id.to_string()),
         ["attempt", id] => Page::Attempt(id.to_string()),
         ["review", id] => Page::Review(id.to_string()),
@@ -82,7 +82,7 @@ fn App() -> impl IntoView {
         let title = match page.get() {
             Page::Library => "Library",
             Page::History => "History",
-            Page::Data => "Data",
+            Page::Settings => "Settings",
             Page::Edit(_) => "Edit quiz",
             Page::Attempt(_) => "Quiz attempt",
             Page::Review(_) => "Review",
@@ -101,7 +101,7 @@ fn App() -> impl IntoView {
             <div class="flex flex-wrap gap-1.5">
                 <a href="#/" class={move || tab_class(page.get() == Page::Library)} aria-current={move || (page.get() == Page::Library).then_some("page")}>"Library"</a>
                 <a href="#/history" class={move || tab_class(page.get() == Page::History)} aria-current={move || (page.get() == Page::History).then_some("page")}>"History"</a>
-                <a href="#/data" class={move || tab_class(page.get() == Page::Data)} aria-current={move || (page.get() == Page::Data).then_some("page")}>"Data"</a>
+                <a href="#/settings" class={move || tab_class(page.get() == Page::Settings)} aria-current={move || (page.get() == Page::Settings).then_some("page")}>"Settings"</a>
             </div>
             <palette::PalettePicker/>
         </nav>
@@ -121,7 +121,7 @@ fn App() -> impl IntoView {
             {move || match page.get() {
                 Page::Library => view! { <Library ui=ui/> }.into_any(),
                 Page::History => view! { <History ui=ui/> }.into_any(),
-                Page::Data => view! { <Data ui=ui/> }.into_any(),
+                Page::Settings => view! { <Settings ui=ui/> }.into_any(),
                 Page::Edit(id) => view! { <editor::Editor ui=ui id=id/> }.into_any(),
                 Page::Attempt(id) => view! { <attempt::Attempt ui=ui id=id/> }.into_any(),
                 Page::Review(id) => view! { <attempt::Review ui=ui id=id/> }.into_any(),
@@ -479,12 +479,20 @@ fn history_row(a: AttemptSummary) -> impl IntoView {
     }
 }
 
-// ---------- Data ----------
+// ---------- Settings ----------
 
 #[component]
-fn Data(ui: Ui) -> impl IntoView {
+fn Settings(ui: Ui) -> impl IntoView {
     view! {
-        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[3px] border-primary pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[100%] font-bold  text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Data"</h1></div>
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[3px] border-primary pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[100%] font-bold  text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Settings"</h1></div>
+        <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
+            <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Question format"</h2>
+            <p class="text-muted-foreground">"The layout used when you paste questions as text in the editor."</p>
+            <details class="group mt-3">
+                <summary class="inline-flex h-9 cursor-pointer list-none items-center rounded-full border border-rule bg-field-bg px-4 font-display font-bold text-sm text-field-ink hover:bg-muted [&::-webkit-details-marker]:hidden">"Show the format"</summary>
+                <pre class="mt-3 whitespace-pre overflow-x-auto rounded-2xl border border-rule bg-surface p-4 font-mono text-[13px] text-field-ink">{crate::editor::FORMAT_HELP}</pre>
+            </details>
+        </section>
         <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Backup"</h2>
             <p class="text-muted-foreground">"Save all quizzes and attempt history to a file you can restore later."</p>

@@ -697,7 +697,7 @@ fn move_question(draft: RwSignal<Quiz>, qid: String, delta: isize) {
 
 // ---------- Import from text ----------
 
-const FORMAT_HELP: &str = "\
+pub const FORMAT_HELP: &str = "\
 1. What is the powerhouse of the cell?
 A) Nucleus
 B) Mitochondria *              (* marks the correct answer; write \\* for a literal star)
@@ -781,10 +781,7 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
             <p class="text-muted-foreground">
                 "Paste questions and answers. Put * after each correct option. The quiz title and settings are set in the fields above."
             </p>
-            <details>
-                <summary>"Show the format"</summary>
-                <pre class="whitespace-pre overflow-x-auto rounded-xl border border-rule bg-surface p-3 font-mono text-[13px] text-field-ink">{FORMAT_HELP}</pre>
-            </details>
+            <p class="text-muted-foreground">"The question layout is shown in Settings."</p>
             <div class="flex flex-wrap items-center gap-2">
                 <Button variant=ButtonVariant::Outline on:click=move |ev: leptos::ev::MouseEvent| open_text(ev)>
                     "Add questions from text"
