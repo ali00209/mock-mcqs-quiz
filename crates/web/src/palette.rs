@@ -3,6 +3,7 @@ use web_sys::Storage;
 
 const STORAGE_KEY: &str = "palette";
 const MODE_KEY: &str = "mode";
+const BACKGROUND_KEY: &str = "background";
 
 /// Appearance modes: (key, label). "system" follows the operating system setting.
 pub const MODES: [(&str, &str); 3] = [("system", "System"), ("light", "Light"), ("dark", "Dark")];
@@ -52,6 +53,76 @@ fn apply(key: &str) {
 pub fn init() {
     apply(saved_key());
     apply_mode(saved_mode());
+    apply_background(saved_background().as_deref());
+}
+
+/// A saved "#rrggbb" background chosen by the reader, if any.
+fn saved_background() -> Option<String> {
+    storage()
+        .and_then(|store| store.get_item(BACKGROUND_KEY).ok().flatten())
+        .filter(|value| is_hex_colour(value))
+}
+
+fn is_hex_colour(value: &str) -> bool {
+    value.len() == 7 && value.starts_with('#') && value[1..].chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Sets the page background to the reader's colour, or clears it so the scheme's colour applies.
+fn apply_background(colour: Option<&str>) {
+    let Some(root) = crate::ui::win().document().and_then(|doc| doc.document_element()) else {
+        return;
+    };
+    match colour {
+        Some(hex) => {
+            let _ = root.set_attribute("style", &format!("--bg: {hex}"));
+        }
+        None => {
+            let _ = root.remove_attribute("style");
+        }
+    }
+}
+
+#[component]
+pub fn BackgroundPicker() -> impl IntoView {
+    let initial = saved_background();
+    let custom = RwSignal::new(initial.is_some());
+    let current = RwSignal::new(initial.unwrap_or_else(|| "#ffffff".to_string()));
+
+    view! {
+        <div class="flex flex-wrap items-center gap-2">
+            <input
+                type="color"
+                aria-label="Background colour"
+                class="h-9 w-14 cursor-pointer rounded-full border border-rule bg-field-bg p-1"
+                prop:value=move || current.get()
+                on:input=move |ev| {
+                    let value = event_target_value(&ev);
+                    if is_hex_colour(&value) {
+                        current.set(value.clone());
+                        custom.set(true);
+                        if let Some(store) = storage() {
+                            let _ = store.set_item(BACKGROUND_KEY, &value);
+                        }
+                        apply_background(Some(&value));
+                    }
+                }
+            />
+            <button
+                type="button"
+                disabled=move || !custom.get()
+                class="inline-flex h-9 items-center rounded-full border border-rule bg-field-bg px-4 font-display font-bold text-sm text-field-ink cursor-pointer hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                on:click=move |_| {
+                    custom.set(false);
+                    if let Some(store) = storage() {
+                        let _ = store.remove_item(BACKGROUND_KEY);
+                    }
+                    apply_background(None);
+                }
+            >
+                "Use scheme background"
+            </button>
+        </div>
+    }
 }
 
 /// The mode saved in this browser, or "system" when none is saved.
