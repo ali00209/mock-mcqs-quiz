@@ -5,11 +5,15 @@ const STORAGE_KEY: &str = "palette";
 
 /// Colour schemes the reader can choose from: (key, label, swatch colour).
 /// The first entry is the default and has no `data-palette` attribute.
-pub const PALETTES: [(&str, &str, &str); 4] = [
+pub const PALETTES: [(&str, &str, &str); 8] = [
     ("indigo", "Indigo", "#4b57d6"),
     ("ocean", "Ocean", "#0f7c8c"),
     ("forest", "Forest", "#2f7d4f"),
     ("sepia", "Sepia", "#9a5b2e"),
+    ("slate", "Slate", "#475d7d"),
+    ("lavender", "Lavender", "#6f5bc4"),
+    ("mint", "Mint", "#2a8068"),
+    ("rose", "Rose", "#b5536b"),
 ];
 
 fn storage() -> Option<Storage> {
