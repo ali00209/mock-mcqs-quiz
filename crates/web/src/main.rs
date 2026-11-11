@@ -383,8 +383,12 @@ fn delete_quiz(ui: Ui, id: String, title: String) {
 #[component]
 fn History(ui: Ui) -> impl IntoView {
     let data = RwSignal::new(None::<Result<BootstrapData, String>>);
-    spawn_local(async move {
-        data.set(Some(api::bootstrap().await));
+    // Reloads whenever the app's data changes, such as after clearing history.
+    Effect::new(move |_| {
+        ui.version.get();
+        spawn_local(async move {
+            data.set(Some(api::bootstrap().await));
+        });
     });
 
     view! {
