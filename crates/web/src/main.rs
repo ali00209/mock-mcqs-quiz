@@ -490,7 +490,7 @@ fn Settings(ui: Ui) -> impl IntoView {
         <div class="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t-[3px] border-primary pt-4"><h1 class="m-0 mb-1.5 font-display font-stretch-[100%] font-bold  text-[40px] leading-[1.02] tracking-[-0.01em] max-[600px]:text-[30px]">"Settings"</h1></div>
         <section class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
             <h2 class="m-0 mb-3 font-display font-stretch-[100%] font-extrabold  text-[15px] leading-[1.3] tracking-[0.06em]">"Appearance"</h2>
-            <p class="text-muted-foreground">"Choose light or dark, a colour scheme, or your own background colour. Your choices are remembered in this browser."</p>
+            <p class="text-muted-foreground">"Choose light or dark, a colour scheme, or make your own for each mode. You can also set a background colour. Your choices are remembered in this browser."</p>
             <div class="mt-3 mb-1"><palette::ModePicker/></div>
             <div class="mt-3 mb-1"><palette::PalettePicker/></div>
             <div class="mt-3 mb-1"><palette::BackgroundPicker/></div>
