@@ -9,6 +9,8 @@ use mocktest_domain::{
 use wasm_bindgen::{JsCast, prelude::*};
 
 use crate::icons;
+use crate::math::Rich;
+use mocktest_domain::math::plain_text;
 
 use crate::api;
 use crate::kit::ui::badge::{Badge, BadgeVariant};
@@ -440,18 +442,18 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
                 QuestionKind::Single => view! {
                     <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-rule bg-field-bg px-3.5 py-3 text-field-ink hover:border-primary has-[[aria-checked=true]]:border-2 has-[[aria-checked=true]]:border-primary has-[[aria-checked=true]]:bg-muted [&>span]:whitespace-pre-wrap">
                         <RadioGroupItem value=oid.get_value() disabled=Signal::derive(move || session.is_locked(&qid.get_value())) />
-                        <span>{text}</span>
+                        <span><Rich text=text/></span>
                     </label>
                 }
                 .into_any(),
                 QuestionKind::Multi => view! {
                     <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-rule bg-field-bg px-3.5 py-3 text-field-ink hover:border-primary has-[[aria-checked=true]]:border-2 has-[[aria-checked=true]]:border-primary has-[[aria-checked=true]]:bg-muted [&>span]:whitespace-pre-wrap">
                         <Checkbox
-                            aria_label=text.clone()
+                            aria_label=plain_text(&text)
                             disabled=Signal::derive(move || session.is_locked(&qid.get_value()))
                             checked=Signal::derive(move || session.answer(&qid.get_value()).selected.contains(&oid.get_value()))
                             on_checked_change=Callback::new(move |v: bool| session.choose(&qid.get_value(), kind, &oid.get_value(), v))/>
-                        <span>{text}</span>
+                        <span><Rich text=text/></span>
                     </label>
                 }
                 .into_any(),
@@ -480,12 +482,16 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
             ids == chosen
         });
         let (class, strong, text) = if correct {
-            ("mt-3.5 border-2 border-ok px-3.5 py-3", "mb-1 block text-ok", "Correct.".to_string())
+            (
+                "mt-3.5 border-2 border-ok px-3.5 py-3",
+                "mb-1 block text-ok",
+                view! { "Correct." }.into_any(),
+            )
         } else {
             (
                 "mt-3.5 border-2 border-bad px-3.5 py-3",
                 "mb-1 block text-bad",
-                format!("Incorrect. The correct answer is {}.", correct_text.get_value()),
+                view! { "Incorrect. The correct answer is " <Rich text=correct_text.get_value()/> "." }.into_any(),
             )
         };
         let mark = if correct { icons::check().into_any() } else { icons::cross().into_any() };
@@ -493,7 +499,7 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
         Some(view! {
             <div class={class} role="status">
                 <strong class={strong}><span class="inline-flex items-center gap-2">{mark}{text}</span></strong>
-                {(!explanation.is_empty()).then(|| view! { <p class="mt-1 mb-0">{explanation}</p> })}
+                {(!explanation.is_empty()).then(|| view! { <p class="mt-1 mb-0"><Rich text=explanation/></p> })}
             </div>
         })
     };
@@ -522,7 +528,7 @@ fn question_card(session: Session, q: AttemptQuestionView, position: usize, one:
                     "Flag"
                 </button>
             </div>
-            <p class="mt-2 mb-4 whitespace-pre-wrap text-[17px] leading-[1.5] [overflow-wrap:anywhere]">{q.prompt}</p>
+            <p class="mt-2 mb-4 whitespace-pre-wrap text-[17px] leading-[1.5] [overflow-wrap:anywhere]"><Rich text=q.prompt.clone()/></p>
             {options}
             {feedback}
         </section>
@@ -693,7 +699,7 @@ fn review_question(index: usize, q: ReviewQuestion) -> impl IntoView {
             };
             let yours = if o.selected && !o.is_correct { " (your answer)" } else { "" };
             let correct = if o.is_correct { " (correct answer)" } else { "" };
-            view! { <li class={class}>{mark}{o.text}{yours}{correct}</li> }
+            view! { <li class={class}>{mark}<Rich text=o.text.clone()/>{yours}{correct}</li> }
         })
         .collect();
     let explanation = q.explanation.clone();
@@ -705,10 +711,10 @@ fn review_question(index: usize, q: ReviewQuestion) -> impl IntoView {
                 <Badge variant=BadgeVariant::Outline class=badge_class>{badge_text}</Badge>
                 {q.flagged.then(|| view! { <Badge variant=BadgeVariant::Outline class="text-[var(--warn)] border-[var(--warn)]">"Flagged"</Badge> })}
             </div>
-            <p class="mt-2 mb-4 whitespace-pre-wrap text-[17px] leading-[1.5] [overflow-wrap:anywhere]">{q.prompt}</p>
+            <p class="mt-2 mb-4 whitespace-pre-wrap text-[17px] leading-[1.5] [overflow-wrap:anywhere]"><Rich text=q.prompt.clone()/></p>
             <ul class="my-2.5 list-none p-0">{options}</ul>
             {(!explanation.is_empty()).then(|| {
-                view! { <p class="rounded-xl border border-rule bg-surface px-3.5 py-3"><strong>"Explanation: "</strong>{explanation}</p> }
+                view! { <p class="rounded-xl border border-rule bg-surface px-3.5 py-3"><strong>"Explanation: "</strong><Rich text=explanation/></p> }
             })}
         </section>
     }

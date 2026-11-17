@@ -19,9 +19,14 @@
 //! its text. Other lines continue the question text or explanation. The quiz's
 //! title and settings are set in the app, not in the text.
 //!
+//! Formulas go between `$...$` or `$$...$$` and may use any LaTeX inside.
+//! A `*` inside a formula is multiplication, and a formula's lines are never
+//! read as questions, options or labels. Write `\$` for a dollar sign.
+//!
 //! A `*` at the end of an option marks it correct. For an option whose text is
 //! a star, write `\*` at the end, or leave a lone `*` as the whole option.
 
+use crate::math::{contains, math_spans};
 use crate::model::{
     AnswerOption, MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, Question, QuestionKind, new_id,
 };
@@ -48,9 +53,8 @@ pub fn parse_quiz_text(text: &str) -> Result<Vec<Question>, Vec<String>> {
     let mut errors = Vec::new();
     let mut current: Option<Draft> = None;
 
-    for (index, raw) in text.lines().enumerate() {
-        let line_no = index + 1;
-        let line = raw.trim();
+    for (line_no, line) in logical_lines(text) {
+        let line = line.as_str();
         if line.is_empty() {
             continue;
         }
@@ -131,6 +135,31 @@ pub fn parse_quiz_text(text: &str) -> Result<Vec<Question>, Vec<String>> {
     if errors.is_empty() { Ok(questions) } else { Err(errors) }
 }
 
+/// The lines of the text, trimmed. A line that starts inside a `$$...$$` formula
+/// is joined to the line before it, so nothing inside the formula is read as a
+/// question, option or label. Each line keeps the number of its first raw line.
+fn logical_lines(text: &str) -> Vec<(usize, String)> {
+    let spans = math_spans(text).spans;
+    let mut lines: Vec<(usize, String)> = Vec::new();
+    let mut offset = 0;
+    for (index, raw) in text.split('\n').enumerate() {
+        let start = offset;
+        offset += raw.len() + 1;
+        let trimmed = raw.trim();
+        let inside_display = spans
+            .iter()
+            .any(|span| span.display && span.start < start && start < span.end);
+        match lines.last_mut() {
+            Some(last) if inside_display => {
+                last.1.push('\n');
+                last.1.push_str(trimmed);
+            }
+            _ => lines.push((index + 1, trimmed.to_string())),
+        }
+    }
+    lines
+}
+
 /// `1. text` or `12) text` → the text after the number.
 fn question_start(line: &str) -> Option<&str> {
     let digits = line.bytes().take_while(|b| b.is_ascii_digit()).count();
@@ -163,13 +192,17 @@ fn option_start(line: &str) -> Option<&str> {
 ///
 /// A `*` at the end marks the option correct. Two cases keep a star as text:
 /// a lone `*` (the whole option is the star), and `\*` at the end (an escaped star).
+/// A star inside a formula is multiplication, so it never marks anything.
 fn option_text(rest: &str) -> (String, bool) {
     let trimmed = rest.trim_end();
+    let spans = math_spans(trimmed).spans;
     if let Some(literal) = trimmed.strip_suffix("\\*") {
-        return (format!("{}*", literal.trim_end()), false);
+        if !contains(&spans, trimmed.len() - 2) {
+            return (format!("{}*", literal.trim_end()), false);
+        }
     }
     if let Some(label) = trimmed.strip_suffix('*') {
-        if !label.trim().is_empty() {
+        if !label.trim().is_empty() && !contains(&spans, trimmed.len() - 1) {
             return (label.trim().to_string(), true);
         }
     }
@@ -333,6 +366,58 @@ d) Yellow
     fn empty_text_has_no_questions() {
         let errors = parse_quiz_text("   \n").unwrap_err();
         assert!(errors[0].contains("No questions"));
+    }
+
+    #[test]
+    fn unclosed_dollar_warns_but_keeps_the_quiz_ready() {
+        use crate::validation::ValidationSeverity;
+
+        let mut quiz = Quiz::blank(0);
+        quiz.title = "Money".into();
+        quiz.questions = parse_quiz_text("1. It costs $5\nA) one *\nB) two\n").unwrap();
+        assert!(quiz.is_ready());
+        let issues = quiz.validation_issues();
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].severity, ValidationSeverity::Warning);
+        assert!(quiz.blocking_issues().is_empty());
+    }
+
+    #[test]
+    fn star_inside_a_formula_is_not_a_marker() {
+        let questions = parse_quiz_text("1. Which is the product?\nA) $2*x$\nB) $2*x$ *\n").unwrap();
+        let options = &questions[0].options;
+        assert_eq!(options[0].text, "$2*x$");
+        assert!(!options[0].is_correct);
+        assert_eq!(options[1].text, "$2*x$");
+        assert!(options[1].is_correct);
+    }
+
+    #[test]
+    fn star_at_the_end_of_a_formula_is_not_a_marker() {
+        // `$a*$` has no marker of its own, so the only correct option is the one with a marker outside the formula.
+        let questions = parse_quiz_text("1. Q?\nA) $a*$ *\nB) $b$\n").unwrap();
+        assert_eq!(questions[0].options[0].text, "$a*$");
+        assert!(questions[0].options[0].is_correct);
+
+        let errors = parse_quiz_text("1. Q?\nA) $a*$\nB) $b$\n").unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("no correct answer")));
+    }
+
+    #[test]
+    fn display_formula_lines_stay_in_the_question() {
+        let text = "1. Find the value\n$$\n2) x = 1\nExplanation: not a label\n$$\nA) one *\nB) two\n";
+        let questions = parse_quiz_text(text).unwrap();
+        assert_eq!(questions.len(), 1);
+        assert_eq!(questions[0].prompt, "Find the value\n$$\n2) x = 1\nExplanation: not a label\n$$");
+        assert_eq!(questions[0].options.len(), 2);
+        assert!(questions[0].explanation.is_empty());
+    }
+
+    #[test]
+    fn formula_text_with_a_dollar_sign_is_kept_as_written() {
+        let questions = parse_quiz_text("1. It costs \\$5 or $x$?\nA) $y$ *\nB) \\$3\n").unwrap();
+        assert_eq!(questions[0].prompt, "It costs \\$5 or $x$?");
+        assert_eq!(questions[0].options[1].text, "\\$3");
     }
 
     #[test]

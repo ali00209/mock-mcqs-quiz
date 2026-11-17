@@ -48,11 +48,26 @@ The worker and the UI only build for wasm, so use `--target wasm32-unknown-unkno
 - **Import / Export** read and write `.quiz.json` files.
 - **Data** makes full backups and restores, and can reset everything.
 
+### Formulas
+
+Prompts, answer options and explanations can contain formulas written in LaTeX.
+Put inline formulas between single dollar signs, like `$x^2 + 1$`, and display
+formulas between double dollar signs, like `$$\int_0^1 x\,dx$$`. Write `\$` for
+a dollar sign. In the paste format, a `*` inside a formula is multiplication,
+so only a `*` after the formula marks a correct answer, like `A) $2*x$ *`.
+
+A `$` with no closing partner is shown as plain text, and the editor warns about
+it. A formula that cannot be drawn is shown as written, and the editor warns
+about it when you save.
+
 ## Notes
 
-The app has no hand-written JavaScript. The one exception is a short bootstrap
+The app has no hand-written JavaScript. Two exceptions: a short bootstrap
 module that `crates/web/src/api.rs` generates at runtime to start the database
-worker, because browsers only start workers from scripts.
+worker, because browsers only start workers from scripts; and KaTeX, the library
+that draws formulas. KaTeX is vendored in `crates/web/public/katex` (MIT
+licence, see the `LICENSE` file there) and loaded by `crates/web/index.html`,
+so formulas work offline.
 
 ## Sample quizzes
 

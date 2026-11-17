@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::validation::ValidationIssue;
+use crate::validation::{ValidationIssue, ValidationSeverity};
 
 pub fn new_id() -> String {
     Uuid::new_v4().to_string()
@@ -217,12 +217,21 @@ impl Quiz {
         }
     }
 
+    /// True when no problem blocks the quiz from being saved or started.
     pub fn is_ready(&self) -> bool {
-        self.validation_issues().is_empty()
+        self.blocking_issues().is_empty()
     }
 
     pub fn validation_issues(&self) -> Vec<ValidationIssue> {
         crate::validation::issues_for(self)
+    }
+
+    /// The problems that block saving and starting. Warnings are left out.
+    pub fn blocking_issues(&self) -> Vec<ValidationIssue> {
+        self.validation_issues()
+            .into_iter()
+            .filter(|issue| issue.severity == ValidationSeverity::Error)
+            .collect()
     }
 
     pub fn normalized(mut self) -> Self {

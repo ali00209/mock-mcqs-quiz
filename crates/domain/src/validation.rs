@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+use crate::math::math_spans;
 use crate::model::{
     MAX_CATEGORY_CHARS, MAX_DESCRIPTION_CHARS, MAX_EXPLANATION_CHARS, MAX_OPTIONS, MAX_OPTION_CHARS,
     MAX_PROMPT_CHARS, MAX_QUESTIONS, MAX_TAGS, MAX_TAG_CHARS, MAX_TIME_LIMIT_SECS, MAX_TITLE_CHARS,
-    Quiz,
+    Question, Quiz,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -221,7 +222,45 @@ pub(crate) fn issues_for(quiz: &Quiz) -> Vec<ValidationIssue> {
                 q,
             ));
         }
+
+        issues.extend(formula_issues(index, question));
     }
 
     issues
+}
+
+/// Warnings for `$` or `$$` signs with no closing partner. These do not block
+/// saving: the sign is shown as plain text.
+fn formula_issues(index: usize, question: &Question) -> Vec<ValidationIssue> {
+    let warning = ValidationSeverity::Warning;
+    let q = Some((index, question.id.as_str()));
+    let label = format!("Question {}", index + 1);
+    let mut found = Vec::new();
+    let mut check = |field: &str, text: &str, what: &str| {
+        if math_spans(text).unclosed > 0 {
+            found.push(issue(
+                field,
+                format!("{label}: {what} has a $ with no closing $. Write \\$ for a dollar sign."),
+                warning,
+                q,
+            ));
+        }
+    };
+    check("prompt", &question.prompt, "the question");
+    for (option_index, option) in question.options.iter().enumerate() {
+        check("option", &option.text, &format!("option {}", option_index + 1));
+    }
+    check("explanation", &question.explanation, "the explanation");
+    found
+}
+
+/// Formula warnings for a set of questions, as messages. Used when the paste
+/// import is checked.
+pub fn formula_warnings(questions: &[Question]) -> Vec<String> {
+    questions
+        .iter()
+        .enumerate()
+        .flat_map(|(index, question)| formula_issues(index, question))
+        .map(|issue| issue.message)
+        .collect()
 }

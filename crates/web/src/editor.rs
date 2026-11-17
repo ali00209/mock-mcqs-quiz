@@ -4,11 +4,13 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use mocktest_domain::{
     AnswerFeedback, AnswerOption, MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, Question, QuestionKind,
-    Quiz, QuizSource, parse_quiz_text,
+    Quiz, QuizSource, formula_warnings, parse_quiz_text,
 };
+use std::time::Duration;
 
 use crate::api;
 use crate::icons;
+use crate::math::{Rich, broken_formulas};
 use crate::kit::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::input::{Input, InputType};
@@ -21,6 +23,59 @@ use crate::kit::ui::textarea::Textarea;
 use crate::ui::{self, LeaveGuard, Ui};
 use std::rc::Rc;
 use wasm_bindgen::{JsCast, closure::Closure};
+
+/// Formulas that KaTeX cannot draw, across the whole quiz, each named by its question.
+fn formula_problems(quiz: &Quiz) -> Vec<String> {
+    let mut found = Vec::new();
+    for (index, question) in quiz.questions.iter().enumerate() {
+        let texts = std::iter::once(question.prompt.as_str())
+            .chain(question.options.iter().map(|option| option.text.as_str()))
+            .chain(std::iter::once(question.explanation.as_str()));
+        for text in texts {
+            found.extend(
+                broken_formulas(text)
+                    .into_iter()
+                    .map(|problem| format!("Question {}: {problem}", index + 1)),
+            );
+        }
+    }
+    found
+}
+
+/// Draws the formulas in `source`, 300 ms after the author stops typing.
+#[component]
+fn FormulaPreview(source: RwSignal<String>) -> impl IntoView {
+    let shown = RwSignal::new(source.get_untracked());
+    let version = RwSignal::new(0u32);
+    Effect::new(move |first: Option<()>| {
+        let text = source.get();
+        // The first run only reads the initial value.
+        if first.is_none() {
+            return;
+        }
+        let current = version.get_untracked() + 1;
+        version.set(current);
+        set_timeout(
+            move || {
+                // A newer keystroke bumps the version, so only the last one is drawn.
+                if version.try_get_untracked() == Some(current) {
+                    let _ = shown.try_set(text);
+                }
+            },
+            Duration::from_millis(300),
+        );
+    });
+    move || {
+        let text = shown.get();
+        text.contains('$').then(|| {
+            view! {
+                <div class="mt-1.5 rounded-lg border border-rule bg-surface px-3 py-2 text-[15px]" role="group" aria-label="Formula preview">
+                    <Rich text=text/>
+                </div>
+            }
+        })
+    }
+}
 
 fn feedback_value(feedback: AnswerFeedback) -> &'static str {
     match feedback {
@@ -176,11 +231,14 @@ fn EditForm(ui: Ui, quiz: Quiz) -> impl IntoView {
         let next = build();
 
         let all = next.validation_issues();
-        let found: Vec<String> = all.iter().map(|issue| issue.message.clone()).collect();
-        let blocked = !found.is_empty();
+        let mut found: Vec<String> = all.iter().map(|issue| issue.message.clone()).collect();
+        found.extend(formula_problems(&next));
+        // Warnings are shown but do not stop the save.
+        let blocking = next.blocking_issues();
+        let blocked = !blocking.is_empty();
         issues.set(found);
         if blocked {
-            if let Some(first) = all.first() {
+            if let Some(first) = blocking.first() {
                 step_request.set(Some(step_for_issue(&first.field, first.question_index)));
                 if let Some(index) = first.question_index {
                     question_index.set(index);
@@ -525,6 +583,7 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question, question_index: RwSignal<
                 <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Prompt"</span>
                 <Textarea rows=2u32 bind_value=prompt/>
             </label>
+            <FormulaPreview source=prompt/>
             <div class="mb-3.5 flex flex-col gap-1.5">
                 <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Type"</span>
                 <Select
@@ -551,6 +610,7 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question, question_index: RwSignal<
                 <span class="font-display font-stretch-[100%] text-xs font-bold  tracking-[0.06em] text-muted-foreground">"Explanation (shown after submitting)"</span>
                 <Textarea rows=2u32 bind_value=explanation/>
             </label>
+            <FormulaPreview source=explanation/>
         </div>
     }
 }
@@ -576,7 +636,8 @@ fn option_row(draft: RwSignal<Quiz>, qid: StoredValue<String>, o: AnswerOption) 
         }
     });
     view! {
-        <div class="mb-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+        <div class="mb-2">
+        <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
             <label class="flex items-center gap-1.5 whitespace-nowrap text-[13px] text-muted-foreground">
                 <Checkbox
                     aria_label="Correct answer"
@@ -595,6 +656,8 @@ fn option_row(draft: RwSignal<Quiz>, qid: StoredValue<String>, o: AnswerOption) 
                 on:click=move |_| remove_option(draft, &qid.get_value(), &oid.get_value())>
                 {icons::cross()}
             </Button>
+        </div>
+        <FormulaPreview source=text/>
         </div>
     }
 }
@@ -830,6 +893,7 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                     }
                     .into_any(),
                     Ok(questions) => {
+                        let warnings = formula_warnings(&questions);
                         let names: Vec<String> = questions
                             .iter()
                             .map(|q| q.prompt.lines().next().unwrap_or_default().to_string())
@@ -839,6 +903,12 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
                             <div class="mb-7 rounded-2xl border border-rule bg-surface px-5 shadow-sm pt-[22px] pb-1.5 [overflow-wrap:anywhere]">
                                 <p class="mb-2.5">{format!("Found {count} question(s):")}</p>
                                 <ol>{names.into_iter().map(|name| view! { <li>{name}</li> }).collect_view()}</ol>
+                                {(!warnings.is_empty()).then(|| view! {
+                                    <div class="mb-2.5 text-[var(--warn)]" role="status">
+                                        <p class="mb-1">"Check these before saving:"</p>
+                                        <ul>{warnings.into_iter().map(|w| view! { <li>{w}</li> }).collect_view()}</ul>
+                                    </div>
+                                })}
                                 <div class="flex flex-wrap items-center gap-2">
                                     <Button variant=ButtonVariant::Default on:click=move |_| apply(true)>"Replace questions"</Button>
                                     <Button variant=ButtonVariant::Outline on:click=move |_| apply(false)>"Add to questions"</Button>

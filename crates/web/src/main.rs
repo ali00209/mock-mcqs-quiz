@@ -3,6 +3,7 @@ mod attempt;
 mod editor;
 mod kit;
 mod icons;
+mod math;
 mod palette;
 mod ui;
 

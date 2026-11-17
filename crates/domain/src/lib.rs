@@ -1,3 +1,4 @@
+pub mod math;
 mod model;
 mod pack;
 mod rpc;
@@ -12,4 +13,4 @@ pub use rpc::*;
 pub use scoring::*;
 pub use shuffle::shuffled_order;
 pub use text_format::parse_quiz_text;
-pub use validation::{ValidationIssue, ValidationSeverity};
+pub use validation::{ValidationIssue, ValidationSeverity, formula_warnings};

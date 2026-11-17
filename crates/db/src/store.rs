@@ -560,7 +560,7 @@ fn start_attempt(
         return Ok(snapshot.view(&meta, &answers));
     }
     let quiz = load_quiz(conn, quiz_id)?;
-    if let Some(issue) = quiz.validation_issues().first() {
+    if let Some(issue) = quiz.blocking_issues().first() {
         return Err(DbError::Invalid(format!(
             "This quiz is not ready: {}",
             issue.message
