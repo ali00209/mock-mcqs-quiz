@@ -15,7 +15,8 @@ pub const MODES: [(&str, &str); 3] = [("system", "System"), ("light", "Light"), 
 
 /// Colour schemes the reader can choose from: (key, label, swatch colour).
 /// The first entry is the default and has no `data-palette` attribute.
-pub const PALETTES: [(&str, &str, &str); 9] = [
+pub const PALETTES: [(&str, &str, &str); 10] = [
+    ("blueprint", "Blueprint", "#0047ff"),
     ("indigo", "Indigo", "#4b57d6"),
     ("ocean", "Ocean", "#0f7c8c"),
     ("forest", "Forest", "#2f7d4f"),

@@ -39,12 +39,12 @@
   --color-input: var(--surface);
   --color-ring: var(--accent);
 
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
-  --radius-2xl: 18px;
-  --radius-3xl: 24px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 6px;
+  --radius-3xl: 6px;
 
   --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -55,13 +55,92 @@
 
    chooses Light, or when the reader chooses Dark. The palette is set by data-palette on <html>
 
-   and the mode by data-mode on <html>. Indigo is the default palette. */
+   and the mode by data-mode on <html>. Blueprint is the default palette. */
 
+/* Blueprint is the default: monochrome paper and ink, a graph-paper grid, and one
+   electric-blue accent. Indigo and the other schemes below are still selectable. */
 :root {
-  --radius: 12px;
+  --radius: 4px;
   --rule: 1px;
   --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --bg: #f3f4f1;
+  --surface: #ffffff;
+  --ink: #101418;
+  --muted: #5a6068;
+  --line: #c9cdd3;
+  --grid: #e1e5e9;
+  --topbar: #101418;
+  --accent: #0047ff;
+  --accent-deep: #0037c7;
+  --accent-tint: #e8efff;
+  --accent-text: #ffffff;
+  --ok: #1d6b45;
+  --bad: #b3261e;
+  --warn: #8a5a10;
+  --field-bg: #ffffff;
+  --field-ink: #101418;
+  --tint: #eef0f3;
+  --shadow: none;
+  color-scheme: light;
+}
+
+:root[data-mode="dark"] {
+  --bg: #0c0e11;
+  --surface: #13161a;
+  --ink: #e6e9ee;
+  --muted: #8e959f;
+  --line: #2b3038;
+  --grid: #1a1e24;
+  --topbar: #05070a;
+  --accent: #5c8dff;
+  --accent-deep: #8fb0ff;
+  --accent-tint: #15213a;
+  --accent-text: #05070a;
+  --ok: #5cc98a;
+  --bad: #f07a72;
+  --warn: #e7b35c;
+  --field-bg: #171b21;
+  --field-ink: #e6e9ee;
+  --tint: #1a1f27;
+  --shadow: none;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-mode="light"]) {
+    --bg: #0c0e11;
+    --surface: #13161a;
+    --ink: #e6e9ee;
+    --muted: #8e959f;
+    --line: #2b3038;
+    --grid: #1a1e24;
+    --topbar: #05070a;
+    --accent: #5c8dff;
+    --accent-deep: #8fb0ff;
+    --accent-tint: #15213a;
+    --accent-text: #05070a;
+    --ok: #5cc98a;
+    --bad: #f07a72;
+    --warn: #e7b35c;
+    --field-bg: #171b21;
+    --field-ink: #e6e9ee;
+    --tint: #1a1f27;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+
+/* The graph-paper grid behind every page. Schemes without --grid show no grid. */
+body {
+  background-image:
+    linear-gradient(var(--grid, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+html[data-palette="indigo"] {
+  --radius: 12px;
   --bg: #f5f6fa;
   --surface: #ffffff;
   --ink: #1b2233;
@@ -82,7 +161,7 @@
   color-scheme: light;
 }
 
-:root[data-mode="dark"] {
+html[data-palette="indigo"][data-mode="dark"] {
   --bg: #0d1120;
   --surface: #161c2e;
   --ink: #e8ebf5;
@@ -104,7 +183,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-mode="light"]) {
+  html[data-palette="indigo"]:not([data-mode="light"]) {
     --bg: #0d1120;
     --surface: #161c2e;
     --ink: #e8ebf5;
