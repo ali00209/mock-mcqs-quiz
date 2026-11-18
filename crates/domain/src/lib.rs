@@ -12,5 +12,5 @@ pub use pack::*;
 pub use rpc::*;
 pub use scoring::*;
 pub use shuffle::shuffled_order;
-pub use text_format::parse_quiz_text;
+pub use text_format::{FORMAT_EXAMPLES, parse_quiz_text};
 pub use validation::{ValidationIssue, ValidationSeverity, formula_warnings};

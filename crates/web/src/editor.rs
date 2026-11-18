@@ -11,6 +11,7 @@ use std::time::Duration;
 use crate::api;
 use crate::icons;
 use crate::math::{Rich, broken_formulas};
+use mocktest_domain::{FORMAT_EXAMPLES, new_id};
 use crate::kit::ui::button::{Button, ButtonSize, ButtonVariant};
 use crate::kit::ui::checkbox::Checkbox;
 use crate::kit::ui::input::{Input, InputType};
@@ -112,6 +113,7 @@ fn synced(
 
 #[component]
 pub fn Editor(ui: Ui, id: String) -> impl IntoView {
+    provide_context(UnlockedTrueFalse(RwSignal::new(Vec::<String>::new())));
     let loaded = RwSignal::new(None::<Result<Quiz, String>>);
     spawn_local(async move {
         loaded.set(Some(api::get_quiz(&id).await));
@@ -589,7 +591,11 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question, question_index: RwSignal<
                 <Select
                     aria_label="Question type"
                     value=kind
-                    options=vec![("single", "Single answer"), ("multi", "Multiple answers")]
+                    options=vec![
+                        ("single", "Single answer"),
+                        ("multi", "Multiple answers"),
+                        ("truefalse", "True / false"),
+                    ]
                     on_change=Callback::new(move |value: String| set_kind(draft, &qid.get_value(), &value))/>
             </div>
             <div >
@@ -601,7 +607,7 @@ fn question_editor(draft: RwSignal<Quiz>, q: Question, question_index: RwSignal<
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <Button variant=ButtonVariant::Outline
-                    attr:disabled={move || question_option_count(draft, &qid.get_value()) >= MAX_OPTIONS}
+                    attr:disabled={move || question_option_count(draft, &qid.get_value()) >= MAX_OPTIONS || true_false_locked(draft, &qid.get_value())}
                     on:click=move |_| add_option(draft, &qid.get_value())>
                     "Add option"
                 </Button>
@@ -645,12 +651,22 @@ fn option_row(draft: RwSignal<Quiz>, qid: StoredValue<String>, o: AnswerOption) 
                     on_checked_change=Callback::new(move |v: bool| mark_correct(draft, &qid.get_value(), &oid.get_value(), v))/>
                 <span>"Correct"</span>
             </label>
-            <Input
-                placeholder="Option text"
-                bind_value=text
-                aria_label=Signal::derive(move || format!("Option {} text", option_number(draft, &qid.get_value(), &oid.get_value())))/>
+            {move || {
+                if true_false_locked(draft, &qid.get_value()) {
+                    // True/false options are fixed, so show the text rather than an input.
+                    view! { <span class="px-3 py-1.5 text-field-ink">{text.get()}</span> }.into_any()
+                } else {
+                    view! {
+                        <Input
+                            placeholder="Option text"
+                            bind_value=text
+                            aria_label=Signal::derive(move || format!("Option {} text", option_number(draft, &qid.get_value(), &oid.get_value())))/>
+                    }
+                    .into_any()
+                }
+            }}
             <Button variant=ButtonVariant::Ghost size=ButtonSize::IconSm
-                attr:disabled={move || question_option_count(draft, &qid.get_value()) <= MIN_OPTIONS}
+                attr:disabled={move || question_option_count(draft, &qid.get_value()) <= MIN_OPTIONS || true_false_locked(draft, &qid.get_value())}
                 attr:title="Remove option"
                 attr:aria-label=move || format!("Remove option {}", option_number(draft, &qid.get_value(), &oid.get_value()))
                 on:click=move |_| remove_option(draft, &qid.get_value(), &oid.get_value())>
@@ -694,7 +710,34 @@ fn option_is_correct(draft: RwSignal<Quiz>, qid: &str, oid: &str) -> bool {
     })
 }
 
+/// Questions the author has switched away from true/false in this editing
+/// session. The data model has no true/false flag, so a question counts as
+/// true/false while it has exactly the options "True" and "False" and this list
+/// does not name it.
+#[derive(Clone, Copy)]
+struct UnlockedTrueFalse(RwSignal<Vec<String>>);
+
+fn matches_true_false(draft: RwSignal<Quiz>, qid: &str) -> bool {
+    draft.with(|d| {
+        d.questions.iter().find(|q| q.id == qid).is_some_and(|q| {
+            q.kind == QuestionKind::Single
+                && q.options.len() == 2
+                && q.options[0].text == "True"
+                && q.options[1].text == "False"
+        })
+    })
+}
+
+/// True when the question is a true/false question whose options are fixed.
+fn true_false_locked(draft: RwSignal<Quiz>, qid: &str) -> bool {
+    let unlocked = expect_context::<UnlockedTrueFalse>().0;
+    !unlocked.with(|ids| ids.iter().any(|x| x == qid)) && matches_true_false(draft, qid)
+}
+
 fn kind_name(draft: RwSignal<Quiz>, qid: &str) -> &'static str {
+    if true_false_locked(draft, qid) {
+        return "truefalse";
+    }
     draft.with(|d| match d.questions.iter().find(|q| q.id == qid).map(|q| q.kind) {
         Some(QuestionKind::Multi) => "multi",
         _ => "single",
@@ -702,6 +745,34 @@ fn kind_name(draft: RwSignal<Quiz>, qid: &str) -> &'static str {
 }
 
 fn set_kind(draft: RwSignal<Quiz>, qid: &str, value: &str) {
+    let unlocked = expect_context::<UnlockedTrueFalse>().0;
+    if value == "truefalse" {
+        // Keep the correct answer: if option 2 was correct, False is correct.
+        let false_was_correct = draft.with(|d| {
+            d.questions
+                .iter()
+                .find(|q| q.id == qid)
+                .and_then(|q| q.options.get(1))
+                .is_some_and(|o| o.is_correct)
+        });
+        update_question(draft, qid, |q| {
+            q.kind = QuestionKind::Single;
+            q.options = vec![
+                AnswerOption { id: new_id(), text: "True".into(), is_correct: !false_was_correct },
+                AnswerOption { id: new_id(), text: "False".into(), is_correct: false_was_correct },
+            ];
+        });
+        unlocked.update(|ids| ids.retain(|x| x != qid));
+        return;
+    }
+    if true_false_locked(draft, qid) {
+        // Leaving true/false makes the two options editable again.
+        unlocked.update(|ids| {
+            if !ids.iter().any(|x| x == qid) {
+                ids.push(qid.to_string());
+            }
+        });
+    }
     let kind = if value == "multi" { QuestionKind::Multi } else { QuestionKind::Single };
     update_question(draft, qid, |q| {
         q.kind = kind;
@@ -761,18 +832,34 @@ fn move_question(draft: RwSignal<Quiz>, qid: String, delta: isize) {
 
 // ---------- Import from text ----------
 
-const FORMAT_HELP: &str = "\
-1. What is the powerhouse of the cell?
-A) Nucleus
-B) Mitochondria *              (* marks the correct answer; write \\* for a literal star)
-C) Ribosome
-Explanation: Mitochondria make ATP.
+const FORMAT_RULES: &str = "\
+RULES
 
-2. Pick the primary colours (multi)
-a) Red *
-b) Green
-c) Blue *
-d) Yellow";
+Question: start the line with a number and a dot, like 1.
+Options: one per line, starting A) B) C) (or a) b) c)).
+Correct answer: put * at the end of each correct option. Write \\* for a literal star.
+  Single answer: exactly one option has *.
+  Multiple answers: add (multi) to the question line, and mark at least two options with *.
+True / false: add (true-false) to the question line, and write Answer: True or Answer: False on its own line. Do not write option lines; True and False are added for you.
+Explanation: write Explanation: followed by the text. Lines after it continue the explanation.
+Formulas: $x^2$ inside a line, or $$...$$ for a formula on its own. A * inside a formula is multiplication, not a correct-answer mark.
+Dollar sign: write \\$ for a dollar sign that is not part of a formula.
+
+COMMON MISTAKES
+
+- No option has * on a single-answer question.
+- Two options have * but the question has no (multi).
+- A (true-false) question has A) or B) option lines, or no Answer: line.
+- A $ with no closing $. It shows as plain text, and the editor warns about it.
+
+EXAMPLES
+
+";
+
+/// The full text of the "Show the format" block.
+fn format_help() -> String {
+    format!("{FORMAT_RULES}{FORMAT_EXAMPLES}")
+}
 
 fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
     let text = RwSignal::new(String::new());
@@ -847,7 +934,7 @@ fn text_import(ui: Ui, draft: RwSignal<Quiz>) -> impl IntoView {
             </p>
             <details>
                 <summary>"Show the format"</summary>
-                <pre class="whitespace-pre overflow-x-auto rounded-xl border border-rule bg-surface p-3 font-mono text-[13px] text-field-ink">{FORMAT_HELP}</pre>
+                <pre class="whitespace-pre overflow-x-auto rounded-xl border border-rule bg-surface p-3 font-mono text-[13px] text-field-ink">{format_help()}</pre>
             </details>
             <div class="flex flex-wrap items-center gap-2">
                 <Button variant=ButtonVariant::Outline on:click=move |ev: leptos::ev::MouseEvent| open_text(ev)>

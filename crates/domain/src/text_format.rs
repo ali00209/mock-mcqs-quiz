@@ -38,11 +38,22 @@ enum Section {
     Explanation,
 }
 
+/// The `Answer:` line of a true/false question.
+#[derive(Clone, Copy, PartialEq)]
+enum Answer {
+    Missing,
+    Given(bool),
+    /// The line was written but is not True or False. Already reported.
+    Invalid,
+}
+
 struct Draft {
     line: usize,
     prompt: String,
     explanation: String,
     multi: bool,
+    true_false: bool,
+    answer: Answer,
     options: Vec<(String, bool)>,
     section: Section,
 }
@@ -63,12 +74,17 @@ pub fn parse_quiz_text(text: &str) -> Result<Vec<Question>, Vec<String>> {
             if let Some(draft) = current.take() {
                 finish(draft, &mut questions, &mut errors);
             }
-            let (prompt, multi) = strip_multi(rest);
+            // The two tags can come in either order, so each is checked on both sides.
+            let (prompt, multi_first) = strip_multi(rest);
+            let (prompt, true_false) = strip_true_false(prompt);
+            let (prompt, multi_last) = strip_multi(prompt);
             current = Some(Draft {
                 line: line_no,
                 prompt: prompt.to_string(),
                 explanation: String::new(),
-                multi,
+                multi: multi_first || multi_last,
+                true_false,
+                answer: Answer::Missing,
                 options: Vec::new(),
                 section: Section::Prompt,
             });
@@ -97,6 +113,29 @@ pub fn parse_quiz_text(text: &str) -> Result<Vec<Question>, Vec<String>> {
                 }
                 None => errors.push(format!(
                     "Line {line_no}: an explanation must come after a question."
+                )),
+            }
+            continue;
+        }
+
+        if let Some(rest) = strip_label(line, "answer:") {
+            match current.as_mut() {
+                Some(draft) => {
+                    if draft.answer != Answer::Missing {
+                        errors.push(format!("Line {line_no}: a question can have only one Answer line."));
+                    } else {
+                        match rest.trim().to_ascii_lowercase().as_str() {
+                            "true" => draft.answer = Answer::Given(true),
+                            "false" => draft.answer = Answer::Given(false),
+                            _ => {
+                                draft.answer = Answer::Invalid;
+                                errors.push(format!("Line {line_no}: Answer must be True or False."));
+                            }
+                        }
+                    }
+                }
+                None => errors.push(format!(
+                    "Line {line_no}: an Answer line must come after a question."
                 )),
             }
             continue;
@@ -209,6 +248,21 @@ fn option_text(rest: &str) -> (String, bool) {
     (trimmed.trim().to_string(), false)
 }
 
+/// Removes a trailing `(true-false)` tag from a question line, ignoring case.
+fn strip_true_false(rest: &str) -> (&str, bool) {
+    let trimmed = rest.trim_end();
+    let tag = "(true-false)";
+    if trimmed.len() >= tag.len() {
+        let cut = trimmed.len() - tag.len();
+        if let Some(end) = trimmed.get(cut..) {
+            if end.eq_ignore_ascii_case(tag) {
+                return (trimmed[..cut].trim_end(), true);
+            }
+        }
+    }
+    (trimmed, false)
+}
+
 /// Removes a trailing `(multi)` tag from a question line.
 fn strip_multi(rest: &str) -> (&str, bool) {
     let trimmed = rest.trim_end();
@@ -236,6 +290,13 @@ fn strip_label<'a>(line: &'a str, label: &str) -> Option<&'a str> {
 
 fn finish(draft: Draft, questions: &mut Vec<Question>, errors: &mut Vec<String>) {
     let label = format!("Question {} (line {})", questions.len() + 1, draft.line);
+    if draft.true_false {
+        finish_true_false(draft, &label, questions, errors);
+        return;
+    }
+    if draft.answer != Answer::Missing {
+        errors.push(format!("{label}: Answer is only for (true-false) questions."));
+    }
     if draft.prompt.trim().is_empty() {
         errors.push(format!("{label}: the question has no text."));
     }
@@ -274,10 +335,136 @@ fn finish(draft: Draft, questions: &mut Vec<Question>, errors: &mut Vec<String>)
     });
 }
 
+/// A true/false question has two options, "True" and "False". Its `Answer:`
+/// line says which one is correct.
+fn finish_true_false(draft: Draft, label: &str, questions: &mut Vec<Question>, errors: &mut Vec<String>) {
+    if draft.multi {
+        errors.push(format!("{label}: a question can't be both (multi) and (true-false)."));
+    }
+    if draft.prompt.trim().is_empty() {
+        errors.push(format!("{label}: the question has no text."));
+    }
+    if !draft.options.is_empty() {
+        errors.push(format!(
+            "{label}: a true/false question has its options built in. Remove the A) and B) lines."
+        ));
+    }
+    let value = match draft.answer {
+        Answer::Given(value) => value,
+        Answer::Missing => {
+            errors.push(format!("{label}: add Answer: True or Answer: False."));
+            return;
+        }
+        Answer::Invalid => return,
+    };
+    questions.push(Question {
+        id: new_id(),
+        prompt: draft.prompt.trim().to_string(),
+        explanation: draft.explanation,
+        kind: QuestionKind::Single,
+        options: vec![
+            AnswerOption { id: new_id(), text: "True".into(), is_correct: value },
+            AnswerOption { id: new_id(), text: "False".into(), is_correct: !value },
+        ],
+    });
+}
+
+/// The examples shown under "Show the format" in the app. A test parses them, so
+/// they cannot drift from the rules.
+pub const FORMAT_EXAMPLES: &str = "\
+1. What is the powerhouse of the cell?
+A) Nucleus
+B) Mitochondria *
+C) Ribosome
+Explanation: Mitochondria make ATP.
+
+2. Pick the primary colours (multi)
+a) Red *
+b) Green
+c) Blue *
+d) Yellow
+
+3. The Earth orbits the Sun. (true-false)
+Answer: True
+
+4. Which expression is the integral of 2x?
+A) $x^2$ *
+B) $x$
+C) $2x^2$
+Explanation: The derivative of $x^2$ is $2x$.
+";
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::Quiz;
+
+    #[test]
+    fn format_examples_parse_into_one_question_of_each_kind() {
+        let questions = parse_quiz_text(FORMAT_EXAMPLES).unwrap();
+        assert_eq!(questions.len(), 4);
+        assert_eq!(questions[0].kind, QuestionKind::Single);
+        assert_eq!(questions[1].kind, QuestionKind::Multi);
+        let true_false = &questions[2];
+        assert_eq!(true_false.kind, QuestionKind::Single);
+        assert_eq!(true_false.options.len(), 2);
+        assert_eq!(true_false.options[0].text, "True");
+        assert!(true_false.options[0].is_correct);
+        assert!(questions[3].options[0].is_correct);
+    }
+
+    #[test]
+    fn true_false_builds_two_options_with_the_answer_marked() {
+        let questions = parse_quiz_text("1. The Earth orbits the Sun. (true-false)\nAnswer: False\n").unwrap();
+        assert_eq!(questions[0].prompt, "The Earth orbits the Sun.");
+        assert_eq!(questions[0].options[0].text, "True");
+        assert!(!questions[0].options[0].is_correct);
+        assert_eq!(questions[0].options[1].text, "False");
+        assert!(questions[0].options[1].is_correct);
+    }
+
+    #[test]
+    fn answer_is_case_insensitive_and_can_follow_the_explanation() {
+        let questions = parse_quiz_text("1. Statement (true-false)\nExplanation: Because.\nanswer: TRUE\n").unwrap();
+        assert!(questions[0].options[0].is_correct);
+        assert_eq!(questions[0].explanation, "Because.");
+    }
+
+    #[test]
+    fn true_false_without_an_answer_is_rejected() {
+        let errors = parse_quiz_text("1. Statement (true-false)\n").unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("add Answer: True or Answer: False")));
+    }
+
+    #[test]
+    fn invalid_answer_reports_its_line() {
+        let errors = parse_quiz_text("1. Statement (true-false)\nAnswer: maybe\n").unwrap_err();
+        assert!(errors.iter().any(|e| e == "Line 2: Answer must be True or False."));
+    }
+
+    #[test]
+    fn true_false_with_option_lines_is_rejected() {
+        let errors = parse_quiz_text("1. Statement (true-false)\nA) yes *\nB) no\nAnswer: True\n").unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("options built in")));
+    }
+
+    #[test]
+    fn multi_and_true_false_together_are_rejected() {
+        let errors = parse_quiz_text("1. Statement (multi) (true-false)\nAnswer: True\n").unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("can't be both")));
+    }
+
+    #[test]
+    fn answer_on_a_normal_question_is_rejected() {
+        let errors = parse_quiz_text("1. Q?\nA) x *\nB) y\nAnswer: True\n").unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("only for (true-false)")));
+    }
+
+    #[test]
+    fn two_answer_lines_are_rejected() {
+        let errors = parse_quiz_text("1. Q (true-false)\nAnswer: True\nAnswer: False\n").unwrap_err();
+        assert!(errors.iter().any(|e| e.contains("only one Answer line")));
+    }
 
     const SAMPLE: &str = "\
 1. What is the powerhouse of the cell?

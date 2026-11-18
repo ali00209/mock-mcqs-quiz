@@ -47,6 +47,9 @@ The worker and the UI only build for wasm, so use `--target wasm32-unknown-unkno
   close the tab and resume from the library.
 - **Import / Export** read and write `.quiz.json` files.
 - **Data** makes full backups and restores, and can reset everything.
+- Each question has a **Type**: Single answer, Multiple answers, or True / false.
+  A true/false question always has the two options True and False. Its options
+  are fixed while the type is True / false. Switch the type to edit them.
 
 ### Formulas
 
@@ -78,7 +81,12 @@ put the JSON packs in `samples/` and list them in `SAMPLES` in
 ## Writing questions as text
 
 In the editor, open **Import questions from text** and paste questions in
-this format:
+the format below. The same rules appear under **Show the format** in the app,
+where the examples are checked by a test, so they stay accurate.
+
+### The three question types
+
+Single answer, with exactly one `*`:
 
 ```
 1. What is the powerhouse of the cell?
@@ -86,18 +94,62 @@ A) Nucleus
 B) Mitochondria *
 C) Ribosome
 Explanation: Mitochondria make ATP.
+```
 
+Multiple answers, with `(multi)` on the question line and at least two `*`:
+
+```
 2. Pick the primary colours (multi)
 a) Red *
 b) Green
 c) Blue *
+d) Yellow
 ```
 
+True or false, with `(true-false)` on the question line and an `Answer:` line.
+Do not write option lines; True and False are added for you:
+
+```
+3. The Earth orbits the Sun. (true-false)
+Answer: True
+```
+
+`Answer:` can be `True` or `False`, in any letter case, and can go before or
+after `Explanation:`.
+
+### Rules
+
 - A question starts with a number and `.` or `)`.
-- Options start with a letter and `)` or `.`. Put `*` after each correct one.
-- For an option whose text is a star, write `\*` at the end (a lone `*` is the option's text).
-- Add `(multi)` after a question with more than one correct answer.
-- `Explanation:` is optional.
+- Options start with a letter and `)` or `.`, one per line.
+- Put `*` at the end of each correct option. A single-answer question needs
+  exactly one. A `(multi)` question needs at least two.
+- For an option whose text is a star, write `\*` at the end. A lone `*` is the
+  option's text.
+- `Explanation:` is optional. Lines after it continue the explanation.
+- A question can't be both `(multi)` and `(true-false)`.
+
+### Formulas
+
+Prompts, options and explanations can contain LaTeX formulas. Inline formulas go
+between single dollar signs, like `$x^2 + 1$`. Display formulas go between
+double dollar signs, like `$$\int_0^1 x\,dx$$`. Each formula must close on the
+same line as its opening sign, except a display formula, which can run over
+several lines.
+
+- Write `\$` for a dollar sign that is not part of a formula.
+- Inside a formula, `*` is multiplication. Only a `*` after the formula marks a
+  correct answer, like `A) $2*x$ *`.
+- A `$` with no closing partner is shown as plain text, and the editor warns
+  about it.
+- A formula that can't be drawn is shown as written, and the editor warns about
+  it when you save.
+
+### Why the rules are like this
+
+The rules are deliberately few, so a single pass over the text is enough to
+find every question. A `*` inside a formula, or a line inside a display formula
+that starts with a number or a letter and `)`, is never read as a question or
+option, because formulas often contain those characters.
 
 The quiz's title, description, category, tags, time limit, pass mark, and
 shuffle settings are set in the form, not in the text. Errors are listed with
